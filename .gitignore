@@ -1,0 +1,5 @@
+﻿# Keep learner context and local credentials out of commits by default.
+/devpost/learner-profile.md
+.env
+.env.*
+!.env.example
