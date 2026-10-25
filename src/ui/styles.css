@@ -238,3 +238,70 @@ h1 em, h2 em { font-family: Georgia, "Times New Roman", serif; font-weight: 500;
   .site-footer { flex-direction: column; }
 }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+/* The study route uses the space below the main site header as one workspace. */
+.app-shell.study-mode { height: 100vh; height: 100dvh; min-height: 0; overflow: hidden; }
+.study-mode .site-header { flex: 0 0 76px; }
+.study-app-main { display: flex; flex: 1 1 auto; min-width: 0; min-height: 0; }
+.study-page { display: flex; flex: 1 1 auto; flex-direction: column; min-width: 0; min-height: 0; padding: 0; overflow: visible; }
+.study-nav { position: relative; flex: 0 0 58px; }
+.study-content { flex: 1 1 auto; min-width: 0; min-height: 0; padding-top: clamp(14px, 1.7vh, 20px); padding-bottom: clamp(14px, 1.7vh, 20px); }
+.study-grid { height: 100%; min-width: 0; min-height: 0; grid-template-columns: minmax(0, 1.7fr) minmax(300px, .65fr); gap: clamp(20px, 3vw, 50px); align-items: stretch; }
+.study-main, .study-side { min-width: 0; min-height: 0; }
+.player-frame { position: relative; overflow: hidden; }
+.player-host { position: absolute; inset: 0; height: 100%; min-width: 0; }
+.player-host iframe { position: absolute; inset: 0; display: block; }
+.study-main { position: relative; }
+.player-credit { margin: 9px 0 0; font-size: 9px; }
+.player-actions { gap: 10px; margin: 12px 0; }
+.player-actions .button { min-height: 44px; padding: 10px 14px; }
+.player-actions .text-button { padding: 9px 0; }
+.study-side { position: static; height: 100%; max-height: none; overflow: visible; padding: 12px 0 0; border-top: 1px solid var(--ink); }
+.study-side .eyebrow { margin-bottom: 9px; }
+.study-side h2 { margin: 0 0 12px; font-size: clamp(22px, 1.7vw, 29px); line-height: 1.08; }
+.study-side .side-line { padding: 8px 0; }
+.timer-box { gap: 5px; padding: 10px; margin: 10px 0; }
+.timer-box > strong { font-size: clamp(38px, 3vw, 48px); }
+.timer-box p { margin-top: 2px; font-size: 11px; line-height: 1.35; }
+.timer-box small { font-size: 10px; line-height: 1.35; }
+.study-side .focus-cup.compact { display: grid; grid-template-columns: minmax(0, 112px) minmax(0, 1fr); align-items: center; gap: 8px; margin: 8px 0; padding: 5px 8px; }
+.study-side .focus-cup.compact .cup-illustration { width: 100%; }
+.study-side .focus-cup figcaption { min-width: 0; text-align: left; font-size: 11px; overflow-wrap: anywhere; }
+.study-side .focus-cup .cup-time { font-size: 11px; }
+.study-side .goal-editor { padding: 8px 0; }
+.study-side .goal-editor > label { margin-bottom: 5px; font-size: 11px; }
+.study-side .goal-editor input { padding: 6px; }
+.study-side .save-state { margin: 8px 0; padding: 8px 10px; }
+.session-actions { border-top: 1px solid var(--line); padding-top: 8px; }
+.session-actions summary { width: fit-content; padding: 8px 0; font-size: 12px; font-weight: 750; text-decoration: underline; text-underline-offset: 4px; cursor: pointer; }
+.session-actions > div { display: grid; gap: 4px; }
+.session-actions .button { min-height: 40px; margin: 4px 0; padding: 9px 12px; }
+.playlist-control { position: relative; z-index: 20; margin-top: 12px; }
+.playlist-toggle { padding: 12px 14px; }
+.playlist-panel { position: absolute; z-index: 21; top: calc(100% - 1px); left: 0; width: min(100%, 520px); max-height: min(48dvh, 360px); overflow-y: auto; overscroll-behavior: contain; box-shadow: 5px 5px 0 rgba(23, 24, 19, .2); }
+.player-status, .focus-notice, .form-error { margin: 8px 0; padding: 9px 12px; font-size: 12px; }
+@media (max-width: 900px) {
+  .app-shell.study-mode { height: auto; min-height: 100dvh; overflow: visible; }
+  .study-app-main { display: block; flex: 0 0 auto; }
+  .study-page { min-height: calc(100dvh - 76px); overflow: visible; }
+  .study-content { flex: 0 0 auto; padding-top: 20px; padding-bottom: 40px; }
+  .study-grid { display: block; height: auto; }
+  .study-side { height: auto; margin-top: 30px; }
+  .study-side .focus-cup.compact { grid-template-columns: minmax(0, 140px) minmax(0, 1fr); }
+  .study-nav { position: sticky; top: 0; z-index: 30; }
+}
+@media (max-width: 760px) {
+  .study-mode .site-header { flex-basis: 68px; }
+  .study-nav { flex-basis: auto; min-height: 58px; }
+  .study-side { max-height: none; overflow: visible; }
+  .playlist-panel { width: min(100%, calc(100vw - 48px)); max-height: min(50dvh, 360px); }
+}
+@media (min-width: 901px) and (max-height: 820px) {
+  .app-shell.study-mode { height: auto; min-height: 100dvh; overflow: visible; }
+  .study-app-main { display: block; flex: 0 0 auto; }
+  .study-page { min-height: calc(100dvh - 76px); flex: 0 0 auto; overflow: visible; }
+  .study-nav { position: sticky; top: 0; z-index: 30; }
+  .study-content { flex: 0 0 auto; padding-top: 20px; padding-bottom: 40px; }
+  .study-grid { height: auto; }
+  .study-side { height: auto; }
+}

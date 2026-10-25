@@ -67,13 +67,20 @@ async function beginStudy(page: Page, url: string): Promise<void> {
 
 test("playlist panel shows real ordered entries, expands, collapses, and selection preserves activity", async ({ page }) => {
   await installFakeYouTube(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
   await beginStudy(page, `https://www.youtube.com/playlist?list=${playlistId}`);
   const toggle = page.locator(".playlist-toggle");
   await expect(toggle).toContainText("Playlist · 2 lessons");
   await expect(toggle).toHaveAttribute("aria-expanded", "false");
-  await toggle.click();
+  const playerBeforeOpen = await page.locator(".player-frame").boundingBox();
+  const progressBeforeOpen = await page.locator(".study-side").boundingBox();
+  await toggle.focus();
+  await page.keyboard.press("Enter");
   await expect(toggle).toHaveAttribute("aria-expanded", "true");
   await expect(page.locator(".playlist-item")).toHaveCount(2);
+  await expect(page.locator("#playlist-panel")).toHaveCSS("position", "absolute");
+  expect(await page.locator(".player-frame").boundingBox()).toEqual(playerBeforeOpen);
+  expect(await page.locator(".study-side").boundingBox()).toEqual(progressBeforeOpen);
   await expect(page.locator(".playlist-item").nth(0)).toContainText("Real first title from the test player");
   await expect(page.locator(".playlist-item").nth(1)).toContainText(secondVideo);
   await expect(page.getByText(/exposes a title only for the current video/i)).toBeVisible();
@@ -147,6 +154,7 @@ test("sticky My Learning navigation restores confirmed state without autoplay", 
 test("Finish session remains distinct from confirmed completion", async ({ page }) => {
   await installFakeYouTube(page);
   await beginStudy(page, `https://www.youtube.com/watch?v=${firstVideo}`);
+  await page.locator(".session-actions summary").click();
   await page.getByRole("button", { name: "Finish session" }).click();
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem("k12learn2gether.commitment")!).sessionStatus)).toBe("finished");
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem("k12learn2gether.commitment")!).lessonStatus)).toBe("unfinished");
@@ -185,6 +193,7 @@ test("a completed commitment cannot resume playback or accrue more activity", as
   await installFakeYouTube(page);
   await beginStudy(page, `https://www.youtube.com/watch?v=${firstVideo}`);
   page.on("dialog", (dialog) => dialog.accept());
+  await page.locator(".session-actions summary").click();
   await page.getByRole("button", { name: /Mark lesson complete/ }).click();
   const playCount = await page.evaluate(() => (window as any).__playCalls);
   const activity = await page.locator(".timer-box strong").innerText();
@@ -219,4 +228,64 @@ test("failed replacement preserves confirmed progress, then a successful replace
   await expect(page.locator(".player-host iframe")).toBeVisible();
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem("k12learn2gether.commitment")!).lesson.videoId)).toBe(replacementId);
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem("k12learn2gether.commitment")!).cumulativeRecordedFocusedMs)).toBe(0);
+});
+
+test("desktop workspace fits the viewport and keeps essential controls visible at both target sizes", async ({ page }, testInfo) => {
+  await installFakeYouTube(page);
+  for (const viewport of [{ width: 1440, height: 900 }, { width: 1920, height: 1080 }]) {
+    await page.setViewportSize(viewport);
+    await page.goto("/");
+    await page.evaluate(() => localStorage.clear());
+    await beginStudy(page, `https://www.youtube.com/playlist?list=${playlistId}`);
+    await expect(page.locator(".study-heading")).toHaveCount(0);
+    await expect(page.locator(".session-actions")).not.toHaveAttribute("open", "");
+    await page.locator(".session-actions summary").focus();
+    await page.keyboard.press("Space");
+    await expect(page.locator(".session-actions")).toHaveAttribute("open", "");
+    await page.keyboard.press("Space");
+    await expect(page.locator(".session-actions")).not.toHaveAttribute("open", "");
+    for (const locator of [
+      page.locator(".study-nav"), page.locator(".player-frame"), page.getByRole("button", { name: /Play \/ Resume/ }),
+      page.locator(".playlist-toggle"), page.locator(".study-side"), page.locator(".timer-box"),
+      page.locator(".focus-cup"), page.getByLabel("Change goal"), page.getByRole("button", { name: "Save goal" }),
+    ]) await expect(locator).toBeInViewport();
+    const frameBox = await page.locator(".player-frame").boundingBox();
+    const iframeBox = await page.locator(".player-host iframe").boundingBox();
+    expect(frameBox!.width / frameBox!.height).toBeCloseTo(16 / 9, 2);
+    expect(iframeBox).toEqual(frameBox);
+    await expect.poll(() => page.evaluate(() => ({
+      height: document.documentElement.scrollHeight,
+      width: document.documentElement.scrollWidth,
+      viewportHeight: window.innerHeight,
+      viewportWidth: window.innerWidth,
+    }))).toEqual({ height: viewport.height, width: viewport.width, viewportHeight: viewport.height, viewportWidth: viewport.width });
+    await page.screenshot({ path: testInfo.outputPath(`study-workspace-${viewport.width}x${viewport.height}.png`) });
+    const playerBox = await page.locator(".player-frame").boundingBox();
+    const sideBox = await page.locator(".study-side").boundingBox();
+    await page.locator(".playlist-toggle").click();
+    await expect(page.locator("#playlist-panel")).toBeInViewport();
+    expect(await page.locator(".player-frame").boundingBox()).toEqual(playerBox);
+    expect(await page.locator(".study-side").boundingBox()).toEqual(sideBox);
+    await expect.poll(() => page.evaluate(() => ({ height: document.documentElement.scrollHeight, width: document.documentElement.scrollWidth })))
+      .toEqual({ height: viewport.height, width: viewport.width });
+    await page.getByRole("button", { name: /Playlist/ }).click();
+    await page.locator(".study-nav .wordmark").click();
+    await expect(page.getByRole("heading", { name: /My Learning/ })).toBeVisible();
+  }
+});
+
+test("mobile study workspace scrolls accessibly without clipping the return navigation", async ({ page }) => {
+  await installFakeYouTube(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await beginStudy(page, `https://www.youtube.com/playlist?list=${playlistId}`);
+  await expect(page.locator(".study-nav")).toBeInViewport();
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollHeight > window.innerHeight)).toBe(true);
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
+  await page.locator(".study-side").scrollIntoViewIfNeeded();
+  await expect(page.locator(".study-nav")).toBeInViewport();
+  await expect(page.locator(".focus-cup")).toBeInViewport();
+  await expect(page.getByLabel("Change goal")).toBeInViewport();
+  const sideBox = await page.locator(".study-side").boundingBox();
+  expect(sideBox!.x).toBeGreaterThanOrEqual(0);
+  expect(sideBox!.x + sideBox!.width).toBeLessThanOrEqual(390);
 });
