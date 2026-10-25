@@ -20,5 +20,14 @@ test("early real YouTube embed accepts a candidate and saves it before study", a
     return raw ? JSON.parse(raw).lesson.videoId : null;
   })).toBe("M7lc1UVf-VE");
   await expect(page.getByRole("heading", { name: "Learn how the YouTube player works" })).toBeVisible();
-  await expect(page.locator(".study-side .side-line").first().locator("strong")).toHaveText("playing", { timeout: 45_000 });
+  const playerState = page.locator(".study-side .side-line").first().locator("strong");
+  await expect(playerState).toHaveText("playing", { timeout: 45_000 });
+  await page.locator(".player-host iframe").click();
+  await expect(playerState).toHaveText("paused", { timeout: 15_000 });
+  const iframeFocusSignals = await page.evaluate(() => ({
+    visibility: document.visibilityState,
+    hasFocus: document.hasFocus(),
+    iframeActive: document.activeElement === document.querySelector(".player-host iframe"),
+  }));
+  console.log(`[real iframe focus] ${JSON.stringify(iframeFocusSignals)}`);
 });

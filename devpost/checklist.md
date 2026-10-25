@@ -19,7 +19,7 @@ Build mode: fast
   Learner check: Open `http://127.0.0.1:5173`, read the first screen, try a valid and invalid lesson URL, then say whether the story, Setup, and real player make sense and feel usable.
   Commit: `Build first visit and YouTube lesson entry`
 
-- [ ] **2. A saved lesson survives reload and opens through Continue Learning**
+- [x] **2. A saved lesson survives reload and opens through Continue Learning**
   Becomes usable: The current commitment persists in this browser; My Learning restores its lesson, objective, goal, position, and paused Continue Learning path.
   Why now: Same-browser continuity is the product's central promise, so it must work before activity tracking and later actions add more data.
   PRD ref: `prd.md > My Learning and commitment continuity`, `prd.md > YouTube error recovery and local persistence`
@@ -29,7 +29,7 @@ Build mode: fast
   Learner check: Save a lesson, reload the canonical URL, use Continue Learning, and confirm the same lesson and goal return without autoplay; try a second tab and inspect its stale-data guidance.
   Commit: `Persist one commitment and restore learning`
 
-- [ ] **3. Eligible study activity fills an honest Focus Cup**
+- [x] **3. Eligible study activity fills an honest Focus Cup**
   Becomes usable: While a confirmed foreground lesson plays, bounded observed intervals increase recorded activity; interruption stops it, and the Focus Cup reflects the saved total.
   Why now: Focus accounting is the main reliability risk and the remaining part of the unique kernel. It needs deterministic tests and real-browser observations before completion flows depend on it.
   PRD ref: `prd.md > Focused study, activity, goal reached, and session finish`, `prd.md > YouTube error recovery and local persistence`
@@ -39,7 +39,7 @@ Build mode: fast
   Learner check: Play a real lesson, pause and switch away, return without automatic playback, then confirm the displayed total and Cup change only during eligible activity.
   Commit: `Record focused activity and render Focus Cup`
 
-- [ ] **4. The student can finish a session or mark a lesson complete deliberately**
+- [x] **4. The student can finish a session or mark a lesson complete deliberately**
   Becomes usable: Finish session retains an unfinished commitment; a separate confirmed action persists the student's Completed status and keeps progress available after reload.
   Why now: These distinct decisions rely on verified position, activity, and storage checkpoints and complete the main study-return journey.
   PRD ref: `prd.md > Focused study, activity, goal reached, and session finish`, `prd.md > My Learning and commitment continuity`
@@ -49,7 +49,7 @@ Build mode: fast
   Learner check: Finish a session and reopen it as Unfinished; then confirm Mark Lesson Complete and reload to see Completed with the prior progress intact.
   Commit: `Separate session finish from lesson completion`
 
-- [ ] **5. Intentional replacement and the full student journey work end to end**
+- [x] **5. Intentional replacement and the full student journey work end to end**
   Becomes usable: A student can intentionally replace one lesson while failed candidates preserve saved progress, and the full first-visit-to-return flow is responsive, accessible, and ready for hands-on review.
   Why now: Replacement is consequential and depends on the existing record, candidate player, and confirmed persistence; final integrated checks catch cross-screen issues after each behavior works alone.
   PRD ref: `prd.md > Setup and candidate lesson loading`, `prd.md > My Learning and commitment continuity`, `prd.md > States and Boundaries`, `prd.md > What We're Building`
