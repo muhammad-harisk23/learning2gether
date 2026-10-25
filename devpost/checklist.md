@@ -54,8 +54,8 @@ Build mode: fast
   Why now: Replacement is consequential and depends on the existing record, candidate player, and confirmed persistence; final integrated checks catch cross-screen issues after each behavior works alone.
   PRD ref: `prd.md > Setup and candidate lesson loading`, `prd.md > My Learning and commitment continuity`, `prd.md > States and Boundaries`, `prd.md > What We're Building`
   Spec ref: `spec.md > YouTube API loader and player adapter`, `spec.md > Commitment repository and runtime validation`, `spec.md > Testing seams and suites`, `spec.md > Look and Feel`, `spec.md > Implementation Sequence and Technical Acceptance`
-  Build: Add explicit continue-or-replace confirmation, candidate isolation, failed/uncertain-save recovery, and successful replacement with zero transferred activity. Complete responsive and keyboard polish, error states, Playwright journeys, real-browser checklist, and run/verification instructions without adding deferred features.
-  Verify (mechanical): Run all Vitest and Playwright suites, `npm run typecheck`, and `npm run build`; check invalid/unavailable candidate preservation, successful replacement, storage faults, mobile widths, keyboard access, reduced motion, and real YouTube behavior in Chromium/Firefox. Record any browser limitation instead of claiming unsupported guarantees.
+  Build: Add explicit continue-or-replace confirmation, candidate isolation, failed/uncertain-save recovery, and successful replacement with zero transferred activity. Support one supplied playlist as the same single commitment: preserve its ID, show actual ordered items, current returned title, accessible selection, and honest unavailable-data fallback. Complete responsive and keyboard polish, error states, Playwright journeys, real-browser checks, and run instructions without adding deferred features.
+  Verify (mechanical): Run all Vitest and Playwright suites, `npm run typecheck`, and `npm run build`; check video and playlist URL parsing, playlist panel count/order/selection and failure fallback, preserved activity, invalid/unavailable candidate preservation, successful replacement, storage faults, mobile widths, keyboard access, reduced motion, and real YouTube behavior in Chromium/Firefox. Record any browser limitation instead of claiming unsupported guarantees.
   Learner check: Follow the whole journey, including a failed replacement and a successful one, on desktop and mobile width; report anything confusing, broken, or visually weak.
   Commit: `Complete safe replacement and integrated study flow`
 
@@ -81,3 +81,4 @@ Reflection: pending
 Activity mode: pending
 
 ## Revisions
+- On 2026-10-25, the learner approved one supplied YouTube playlist as an alternative single active commitment. This remains narrow: actual IFrame API IDs/order, current title only, no Data API key or metadata service, and no discovery/collections.

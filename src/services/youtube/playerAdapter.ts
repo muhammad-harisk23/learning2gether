@@ -1,7 +1,14 @@
 import { loadYouTubeApi, YT_STATE, type YouTubeApi, type YouTubePlayer } from "./iframeApi";
+import { canonicalYouTubeUrl, type ConfirmedYouTubeLesson, type YouTubeLesson } from "../../domain/youtubeUrl";
 
 export type PlayerState = "unstarted" | "cued" | "playing" | "paused" | "buffering" | "ended";
-export type CandidateResult = { status: "accepted" } | { status: "error" | "timeout" | "cancelled"; message: string };
+export type CandidateResult = { status: "accepted"; lesson: ConfirmedYouTubeLesson } | { status: "error" | "timeout" | "cancelled"; message: string };
+export interface CurrentVideo {
+  videoId: string;
+  title?: string;
+  playlistIndex?: number;
+  playlistVideoIds?: string[];
+}
 
 export function playerErrorMessage(code: number): string {
   switch (code) {
@@ -31,6 +38,7 @@ export interface PlayerCallbacks {
   onState(state: PlayerState): void;
   onError(message: string): void;
   onAutoplayBlocked(): void;
+  onCurrentVideo?(video: CurrentVideo): void;
 }
 
 export class PlayerAdapter {
@@ -39,6 +47,7 @@ export class PlayerAdapter {
   private timeout: number | null = null;
   private resolveCandidate: ((result: CandidateResult) => void) | null = null;
   private candidateAccepted = false;
+  private playlistRepositioned = false;
   private state: PlayerState = "unstarted";
 
   constructor(
@@ -47,9 +56,14 @@ export class PlayerAdapter {
     private readonly apiLoader: () => Promise<YouTubeApi> = loadYouTubeApi,
   ) {}
 
-  async cueCandidate(videoId: string): Promise<CandidateResult> {
+  async cueCandidate(input: string | YouTubeLesson): Promise<CandidateResult> {
     if (this.destroyed) return { status: "cancelled", message: "Loading cancelled." };
     if (this.resolveCandidate || this.player) throw new Error("Player already initialized");
+    const lesson: YouTubeLesson = typeof input === "string" ? {
+      videoId: input,
+      canonicalUrl: `https://www.youtube.com/watch?v=${input}`,
+    } : input;
+    if (!lesson.videoId && !lesson.playlistId) return { status: "error", message: "The lesson URL has no video or playlist ID." };
     try {
       const api = await this.apiLoader();
       if (this.destroyed) return { status: "cancelled", message: "Loading cancelled." };
@@ -64,7 +78,11 @@ export class PlayerAdapter {
           events: {
             onReady: ({ target }) => {
               if (this.destroyed) return;
-              target.cueVideoById(videoId);
+              if (lesson.playlistId) {
+                target.cuePlaylist({ list: lesson.playlistId, listType: "playlist", index: lesson.playlistIndex ?? 0 });
+              } else if (lesson.videoId) {
+                target.cueVideoById(lesson.videoId);
+              }
               this.timeout = window.setTimeout(() => this.resolveOnce({
                 status: "timeout",
                 message: "Couldn’t confirm this video loaded. Retry or cancel.",
@@ -76,10 +94,37 @@ export class PlayerAdapter {
               if (!state) return;
               this.state = state;
               this.callbacks.onState(state);
+              const video = this.readCurrentVideo();
               if (!this.candidateAccepted && (state === "cued" || state === "playing")) {
+                if (!video) return;
+                if (lesson.playlistId && !video.playlistVideoIds?.length) {
+                  this.resolveOnce({ status: "error", message: "YouTube confirmed a video but did not return this playlist’s entries. The saved commitment was left unchanged; try a direct video link." });
+                  return;
+                }
+                if (lesson.playlistId && lesson.videoId && video.playlistVideoIds) {
+                  const requestedIndex = video.playlistVideoIds.indexOf(lesson.videoId);
+                  if (requestedIndex < 0) {
+                    this.resolveOnce({ status: "error", message: "The selected video is not in this playlist. The saved commitment was left unchanged." });
+                    return;
+                  }
+                  if (!this.playlistRepositioned && video.playlistIndex !== requestedIndex) {
+                    this.playlistRepositioned = true;
+                    this.player?.cuePlaylist({ list: lesson.playlistId, listType: "playlist", index: requestedIndex });
+                    return;
+                  }
+                  if (video.videoId !== lesson.videoId) return;
+                }
                 this.candidateAccepted = true;
-                this.resolveOnce({ status: "accepted" });
+                this.resolveOnce({ status: "accepted", lesson: {
+                  ...lesson,
+                  videoId: video.videoId,
+                  canonicalUrl: canonicalYouTubeUrl(video.videoId, lesson.playlistId),
+                  ...(video.playlistIndex !== undefined ? { playlistIndex: video.playlistIndex } : {}),
+                  ...(video.playlistVideoIds ? { playlistVideoIds: video.playlistVideoIds } : {}),
+                  ...(video.title ? { title: video.title } : {}),
+                } });
               }
+              if (this.candidateAccepted && video) this.callbacks.onCurrentVideo?.(video);
             },
             onError: ({ data }) => {
               if (this.destroyed) return;
@@ -119,6 +164,25 @@ export class PlayerAdapter {
     return this.destroyed ? null : this.player?.getIframe() ?? null;
   }
   getState(): PlayerState { return this.state; }
+  getPlaylistVideoIds(): string[] { return this.player?.getPlaylist?.() ?? []; }
+  playVideoAt(index: number): void {
+    const ids = this.getPlaylistVideoIds();
+    if (!this.destroyed && Number.isInteger(index) && index >= 0 && index < ids.length) this.player?.playVideoAt(index);
+  }
+
+  private readCurrentVideo(): CurrentVideo | null {
+    const player = this.player;
+    const videoId = player?.getVideoData?.().video_id;
+    if (!videoId || !/^[A-Za-z0-9_-]{11}$/.test(videoId)) return null;
+    const playlistVideoIds = player?.getPlaylist?.() ?? [];
+    const playlistIndex = playlistVideoIds.length ? player?.getPlaylistIndex?.() : undefined;
+    return {
+      videoId,
+      ...(player?.getVideoData?.().title ? { title: player.getVideoData().title } : {}),
+      ...(playlistIndex !== undefined && playlistIndex >= 0 ? { playlistIndex } : {}),
+      ...(playlistVideoIds.length ? { playlistVideoIds } : {}),
+    };
+  }
 
   destroy(): void {
     if (this.destroyed) return;

@@ -5,7 +5,7 @@ status: approved
 
 # K12Learn2Gether
 
-A focused learning workspace that helps students commit to one YouTube lesson, record focused activity, and return to where they left off; studying with a friend is optional.
+A focused learning workspace that helps students commit to one YouTube video or one supplied playlist, record focused activity, and return to where they left off; studying with a friend is optional.
 
 ## The Unique Kernel
 
@@ -17,7 +17,7 @@ An Indian school student in Classes 9–12 preparing in mathematics or science w
 
 ## The Core Loop
 
-Choose one embeddable YouTube lesson as the active learning commitment; set a learning objective and focused-time goal; study in a quiet workspace; and let the app save recorded focused activity and the latest confirmed playback position. When the student returns, Continue Learning restores the unfinished lesson and their private Focus Cup. Finish session ends only the current study period. When the learner says they have finished the lesson, a separate confirmed Mark Lesson Complete action records that self-reported status. If they try to choose another lesson, they explicitly choose to continue the current commitment or replace it. They can optionally finish with a short reflection or next action. An optional guest room may add shared host-controlled playback after the solo loop works.
+Choose one embeddable YouTube video or one supplied playlist as the active learning commitment; set an objective and focused-time goal; study in a quiet workspace; and let the app save recorded focused activity and the latest confirmed video position. For a playlist, the student can inspect YouTube's actual ordered video IDs and select an item while keeping the same commitment and activity total. When the student returns, Continue Learning restores the unfinished commitment and private Focus Cup. Finish session ends only the current study period. When the learner says they have finished the lesson, a separate confirmed Mark Lesson Complete action records that self-reported status. If they try to choose another lesson, they explicitly choose to continue the current commitment or replace it. They can optionally finish with a short reflection or next action. An optional guest room may add shared host-controlled playback after the solo loop works.
 
 ## Inspiration & Identity
 
@@ -29,19 +29,20 @@ This comes from the learner's own experience: excellent free YouTube teachers we
 
 ## What "Working" Looks Like
 
-The primary demonstration is solo: a student chooses a lesson, writes an objective, sets a goal, studies, switches away, and sees playback pause and focused activity stop. Later they reopen the app in the same browser and use Continue Learning; the lesson, last confirmed playback position, saved total of recorded focused activity, goal, and Focus Cup fill are restored accurately. Finish session leaves an unfinished lesson active. A separate confirmed Mark Lesson Complete action sets the learner-reported completed status without claiming comprehension. When they try to replace an unfinished lesson, the app asks them to continue it or intentionally replace it. A failed or unavailable replacement leaves the current commitment intact. If the optional collaboration slice is completed, a second real browser joins an expiring invitation, follows host playback changes, and keeps its own recorded focused activity total. The main "that's useful" moment is continuing an unfinished lesson without searching for it again.
+The primary demonstration is solo: a student chooses a video or supplied playlist, writes an objective, sets a goal, studies, switches away, and sees playback pause and focused activity stop. Later they reopen the app in the same browser and use Continue Learning; the commitment, current playlist item when applicable, last confirmed playback position, saved focused activity, goal, and Focus Cup fill are restored accurately. Finish session leaves an unfinished commitment active. A separate confirmed Mark Lesson Complete action sets the learner-reported completed status without claiming comprehension. When they try to replace an unfinished commitment, the app asks them to continue it or intentionally replace it. A failed or unavailable replacement leaves the current commitment intact. If the optional collaboration slice is completed, a second real browser joins an expiring invitation, follows host playback changes, and keeps its own recorded focused activity total. The main "that's useful" moment is continuing without searching again.
 
 ## In Scope
 
 ### Required solo learning
 
-This minimal scope amendment adds a learner-confirmed completion state and its necessary UI only; it does not add archived lessons or multiple active commitments.
+This amendment adds learner-confirmed completion and one supplied YouTube playlist as an alternative to a single video; it does not add archived lessons, discovery, or multiple active commitments.
 
-- One active learning commitment containing one student-selected, embeddable YouTube lesson, one short learning objective, and one personal focused-time goal. One lesson keeps this build bounded; playlist discovery, multi-lesson paths, and syllabus libraries are later work.
+- One active learning commitment containing either one student-selected, embeddable YouTube video or one supplied playlist, one short objective, and one personal focused-time goal. Playlist activity belongs to this one commitment. Playlist discovery, recommendations, saved playlist collections, cross-playlist paths, and syllabus libraries remain out of scope.
+- For a supplied playlist, use the official IFrame API to show actual ordered video IDs and select an item. Show a title only when YouTube returns it for the current item; do not fabricate titles or lengths. Unavailable playlist entries show a fallback and preserve the prior commitment. Do not add a Data API key or metadata service.
 - A distraction-reduced learning workspace with a prominent Continue Learning action for the saved unfinished commitment.
 - If the student attempts to select a different lesson while one is unfinished, offer an explicit choice to continue the current commitment or intentionally replace it. Do not replace or clear saved progress silently. Validate that the URL is supported, then attempt to load the candidate while leaving the current saved commitment untouched. Do not assume embedding availability can always be verified in advance. Commit the replacement only after the player confirms the candidate loaded without an error; if loading fails or reports an error, keep the existing commitment and its progress.
 - Browser-reported focus protection: count time only while the YouTube player reports playing, the page is visible, and the app window is focused where the browser reports it. A paused, buffering, hidden, unfocused, errored, or otherwise interrupted player does not accrue time. Where supported, hiding or blurring the app pauses local playback and stops counting; regaining focus never auto-starts playback. Browser/player signals are an activity proxy, not proof of attention, comprehension, or tamper resistance.
-- Persist the selected lesson, objective, target duration, latest confirmed playback position, lesson status (unfinished/completed), study-session state, and recorded focused activity seconds in the same browser profile so reload and reopening the app restore the commitment. Do not require accounts, a backend, or cross-device sync for solo use. Choose the browser-local persistence mechanism in `4-spec`. Save during activity and on meaningful state changes; an unload event may help but must not be the only save path. Clearing browser site data may erase this local progress.
+- Persist the selected video or playlist ID, actual playlist video IDs/order when available, current item/index, objective, target duration, latest confirmed playback position, lesson status (unfinished/completed), session state, and recorded focused activity milliseconds in the same browser profile so reload restores the commitment. Do not require accounts, a backend, or cross-device sync for solo use. Choose the browser-local persistence mechanism in `4-spec`. Save during activity and on meaningful state changes; an unload event may help but must not be the only save path. Clearing browser site data may erase this local progress.
 - A private Focus Cup showing recorded focused activity relative to the student's goal, capped at 100%; 15 of 25 minutes displays 60%. Use SVG or CSS, accurate time and percentage, restrained fill animation, and reduced-motion support. It is informational and private, with no prizes, points, badges, public ranking, or playback gating.
 - An optional short reflection or next action on explicit finish. Time toward a goal is activity only, not evidence of comprehension or automatic lesson completion.
 - A separate, deliberate **Mark Lesson Complete** action in the learning workspace. It requires clear confirmation, ends any active study session, pauses playback where supported, checkpoints the latest confirmed position and all eligible recorded focused activity, and persists a completed status. Completion means only that the learner says they finished this lesson; it does not verify understanding, mastery, exam readiness, or syllabus completion. Neither reaching the goal, ending a session, reaching the end of the YouTube video, nor playback position can complete the lesson.
@@ -59,7 +60,8 @@ This minimal scope amendment adds a learner-confirmed completion state and its n
 
 ### Required solo experience
 
-- A student can select one valid embeddable YouTube lesson, define an objective and goal, start studying, and find the saved commitment through Continue Learning.
+- A student can select one valid embeddable YouTube video or supplied playlist, define an objective and goal, start studying, and find the saved commitment through Continue Learning.
+- A supplied playlist panel opens/closes accessibly, reflects YouTube's real entry count and order, and selecting an entry updates the current video while preserving the same commitment and activity total. Tests cover playlist-only and watch URLs containing both `v` and `list`; missing entries show an honest fallback without replacing saved progress.
 - Attempting to replace an unfinished lesson presents the explicit continue-or-replace choice. Choosing continue preserves the current lesson and all progress. Choosing replace is intentional; attempt to load the supported URL while retaining the old saved commitment. Do not claim embed availability is known in advance. Commit only after the player confirms the candidate loaded without error; invalid URLs or candidate load/player errors preserve the old commitment and progress.
 - Reloading or reopening the app in the same browser restores the lesson, objective, goal, unfinished/finished state, last confirmed playback position, and accumulated focused time. Saving does not rely on unload alone. Tests verify that restored time is not duplicated.
 - Player pause, buffering, hidden page, reported window blur, player error, or interrupted/non-playing playback each stops focused-time accumulation. Where focus-loss signals are available, playback pauses; returning does not auto-resume. Tests confirm no focused activity is recorded for these conditions and that unobserved/suspended timer gaps are not counted.
@@ -79,7 +81,7 @@ This minimal scope amendment adds a learner-confirmed completion state and its n
 
 ## Later
 
-Multiple lessons and playlist/path continuity; curriculum and subject pathways; revision tools; actual shared AI tutoring; broader analytics; and learning-consistency features, only after review for YouTube policy compliance.
+Playlist discovery/recommendations, saved playlist collections, and cross-playlist continuity; curriculum and subject pathways; revision tools; actual shared AI tutoring; broader analytics; and learning-consistency features, only after review for YouTube policy compliance.
 
 ## Explicitly Cut
 

@@ -9,10 +9,15 @@ export const YT_STATE = {
 
 export interface YouTubePlayer {
   cueVideoById(videoId: string): void;
+  cuePlaylist(options: { list: string; listType: "playlist"; index: number }): void;
   playVideo(): void;
+  playVideoAt(index: number): void;
   pauseVideo(): void;
   seekTo(seconds: number, allowSeekAhead: boolean): void;
   getCurrentTime(): number;
+  getPlaylist(): string[];
+  getPlaylistIndex(): number;
+  getVideoData(): { video_id?: string; title?: string };
   destroy(): void;
   getIframe(): HTMLIFrameElement;
 }

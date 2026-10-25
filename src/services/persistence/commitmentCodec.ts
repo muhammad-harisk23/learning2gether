@@ -22,7 +22,11 @@ export function decodeCommitment(value: unknown): CommitmentRecordV1 | null {
   if (
     typeof lesson.videoId !== "string" ||
     !VIDEO_ID.test(lesson.videoId) ||
-    lesson.canonicalUrl !== canonicalYouTubeUrl(lesson.videoId) ||
+    (lesson.playlistId !== undefined && (typeof lesson.playlistId !== "string" || !/^[A-Za-z0-9_-]{10,80}$/.test(lesson.playlistId))) ||
+    lesson.canonicalUrl !== canonicalYouTubeUrl(lesson.videoId, typeof lesson.playlistId === "string" ? lesson.playlistId : undefined) ||
+    (lesson.playlistVideoIds !== undefined && (!Array.isArray(lesson.playlistVideoIds) || lesson.playlistVideoIds.length < 1 || lesson.playlistVideoIds.length > 500 || !lesson.playlistVideoIds.every((id) => typeof id === "string" && VIDEO_ID.test(id)))) ||
+    (lesson.playlistIndex !== undefined && (!Number.isSafeInteger(lesson.playlistIndex) || Number(lesson.playlistIndex) < 0 || !Array.isArray(lesson.playlistVideoIds) || Number(lesson.playlistIndex) >= lesson.playlistVideoIds.length || lesson.playlistVideoIds[Number(lesson.playlistIndex)] !== lesson.videoId)) ||
+    (lesson.title !== undefined && (typeof lesson.title !== "string" || lesson.title.length > 200)) ||
     typeof value.objective !== "string" ||
     parseObjective(value.objective) !== value.objective ||
     typeof value.goalMinutes !== "number" ||

@@ -1,4 +1,4 @@
----
+﻿---
 doc: spec
 status: approved
 ---
@@ -87,7 +87,7 @@ Implements `prd.md > Screens and Layout > Editorial landing page — first visit
 
 ### Focused Setup view
 
-Collects one lesson URL, short objective, and 15/25/45 or custom 5–240 minute goal. It preserves entered values and displays accessible inline validation. Candidate loading keeps the old commitment persisted until candidate acceptance.
+Collects one YouTube video or playlist URL, short objective, and 15/25/45 or custom 5–240 minute goal. It preserves entered values and displays accessible inline validation. Candidate loading keeps the old commitment persisted until a video-specific candidate confirmation and confirmed storage write.
 
 Implements `prd.md > Screens and Layout > Focused Setup view — first commitment or intentional replacement` and `prd.md > Setup and candidate lesson loading`.
 
@@ -99,25 +99,25 @@ Implements `prd.md > Screens and Layout > My Learning — returning student home
 
 ### Study workspace
 
-Keeps the standard YouTube player prominent, displays objective and progress context, offers user-controlled Play/Resume, Recheck focus, and Finish session, and exposes Mark Lesson Complete separately behind confirmation. It renders player/loading/focus/error/goal-reached states and `saving`/`saved`/`not-saved`/`unverified`/`stale` persistence feedback without obscuring YouTube controls. Unsaved in-memory activity is labeled separately from the confirmed saved total.
+`StudyWorkspace` in `src/ui/App.tsx` keeps the standard YouTube player prominent, displays the objective and progress context, and provides sticky My Learning navigation, Play/Resume, Pause, Recheck focus, Finish session, and separately confirmed Mark Lesson Complete. Its playlist toggle shows YouTube's returned item count and actual ordered IDs; the current returned title is shown when available. Selecting a playlist item updates the same commitment and retains accumulated activity. The live timer updates at second-level precision; saved and session-only activity are labeled separately. The SVG/CSS Focus Cup uses the last confirmed persisted activity and current goal. It renders player/loading/autoplay/focus/storage/error/goal-reached states without obscuring YouTube controls.
 
 Implements `prd.md > Screens and Layout > Focused study workspace`, `prd.md > Focused study, activity, goal reached, and session finish`, and `prd.md > States and Boundaries`.
 
 ### Commitment domain and goal calculations
 
-Defines the commitment and session types, validates objective and goal values, calculates target remainder and Focus Cup fill, and expresses safe replacement and finish/complete transitions as pure functions. No React component performs domain calculations or writes storage directly.
+`src/domain/commitment.ts` defines commitment/session types and objective rules; `src/domain/focusGoal.ts` validates goals and calculates remainder/Cup fill. The App coordinates transitions through the single `CommitmentRepository`; it does not read or write `localStorage` directly.
 
 Implements `prd.md > Setup and candidate lesson loading` and `prd.md > My Learning and commitment continuity`.
 
 ### YouTube URL parser
 
-Uses the platform `URL` parser, accepts HTTPS URLs only from `youtube.com`, `www.youtube.com`, `m.youtube.com`, and `youtu.be`, and extracts an 11-character video ID from `/watch?v=...`, `/embed/{id}`, `/shorts/{id}`, `/live/{id}`, or `youtu.be/{id}`. Rejects lookalike domains, userinfo, unsupported paths, malformed IDs, and non-HTTPS schemes. Ignores playlist parameters and never creates an arbitrary iframe URL from raw user input. Produces a canonical YouTube URL and video ID.
+Uses the platform `URL` parser and accepts HTTPS URLs only from `youtube.com`, `www.youtube.com`, `m.youtube.com`, and `youtu.be`. It supports video URLs at `/watch?v=...`, `/embed/{id}`, `/shorts/{id}`, `/live/{id}`, and `youtu.be/{id}`, including watch links that also contain `list`; it also accepts standard `/playlist?list=...` links. It validates 11-character video IDs and bounded playlist IDs, rejects lookalike domains, userinfo, unsupported paths, repeated/malformed IDs, and non-HTTPS schemes, and never creates an iframe URL from raw user input. The parser preserves the playlist ID while the player resolves a playlist-only URL to a real first item. It produces a canonical URL retaining both video and playlist IDs when applicable.
 
 Implements `prd.md > Setup and candidate lesson loading` and `prd.md > YouTube error recovery and local persistence`.
 
 ### YouTube API loader and player adapter
 
-Loads `https://www.youtube.com/iframe_api` through one shared loader promise and installs one `onYouTubeIframeAPIReady` callback. A typed adapter owns player creation, readiness, video-specific state/error events, play, pause, seek/position reads, and `destroy()` cleanup. React receives normalized events and never accesses the YouTube iframe's internal DOM. A stable player host/ref prevents ordinary React rerenders from constructing another player; teardown removes callbacks and the iframe, and late events from a destroyed instance are ignored.
+Loads `https://www.youtube.com/iframe_api` through one shared loader promise and installs one `onYouTubeIframeAPIReady` callback. A typed adapter owns player creation, readiness, video-specific state/error events, play, pause, seek/position reads, playlist cue/select, current playlist IDs/index/title reads, and `destroy()` cleanup. `onReady` means the API is ready; a candidate is saved only after a video-specific `CUED` or `PLAYING` state confirms the requested item and required playlist IDs are returned. The playlist panel uses actual ordered IDs and the API-reported current title; the IFrame API does not return titles for every queued item, so other entries display their actual IDs. No YouTube Data API key or metadata service is added. React never accesses the YouTube iframe's internal DOM. A stable player host/ref prevents ordinary React rerenders from constructing another player; teardown removes callbacks and the iframe, and late events from a destroyed instance are ignored.
 
 Map IFrame API state values to `unstarted`, `ended`, `playing`, `paused`, `buffering`, and `cued`; map `onError` codes 2, 5, 100, 101/150, and 153 to clear recoverable states. Treat `onAutoplayBlocked` as a browser playback restriction, not a video error. Keep controls enabled and include the host page `origin` in the API player parameters. The current API reference documents player lifecycle, state and error events, `onAutoplayBlocked`, current-time reads, and `destroy()`.
 
@@ -191,12 +191,11 @@ Implements `prd.md > My Learning — returning student home`, `prd.md > Look and
 
 ### Testing seams and suites
 
-`PlayerPort` and `FocusSignalSource` interfaces let Vitest use a controllable fake player, injected clock, and focus-event source. These prove domain and application behavior only. `appServices.ts` accepts those interfaces at the composition boundary. Playwright runs Chromium UI flows through a test-only Vite harness that supplies the fake services while rendering the same app components; the harness can emit hidden, confirmed-lost, foreground, and ambiguous iframe focus signals so tab-switch/minimize/app-focus responses can be checked deterministically. That harness is not part of the production build. These tests prove the app's response to signals, not that a real desktop action emitted them. The suite must not be described as proof of YouTube playback or native desktop focus. Add a separate manual checklist for real YouTube embeds in Chromium and Firefox, including iframe control/seek interaction, tab switching, minimize, switching to another application, buffering/error, return-without-autoplay, and cleanup/reload.
+`FocusController` accepts an injectable monotonic clock, interval scheduler, and `FocusSignalSource`, allowing Vitest to test time accounting deterministically. The production UI composes the real browser focus source, official YouTube adapter, and local repository in `src/ui/App.tsx`. Playwright runs Chromium UI flows against the same app with a test-injected fake YouTube IFrame API; those tests verify visible state transitions but do not prove real playback or native desktop focus. The separate first-lesson Playwright test uses the real YouTube embed. Manual checks in actual Chromium and Firefox remain necessary for iframe controls, tab switching, minimizing, switching applications, buffering/errors, return-without-autoplay, and cleanup/reload.
 
-Playwright does not model actual tab activation merely by creating multiple pages: pages in a browser context are treated as focused. Do not count a multi-tab test as native tab-switch/minimize verification. The controller's injected signal tests verify reactions to hidden, confirmed-lost, and ambiguous events; manual browser checks verify how real browsers emit those signals.
+Playwright does not model actual tab activation merely by creating multiple pages: pages in one browser context are not a substitute for OS-level focus evidence. The injected UI tests verify reactions to hidden, confirmed-lost, and ambiguous signals; manual browser checks establish how actual browser and iframe interactions report those signals.
 
 Implements the testing requirements in `prd.md > Setup and candidate lesson loading`, `prd.md > My Learning and commitment continuity`, `prd.md > Focused study, activity, goal reached, and session finish`, and `prd.md > YouTube error recovery and local persistence`.
-
 ## Data Model
 
 There is one authoritative browser-local record and no remote data model.
@@ -211,6 +210,10 @@ interface CommitmentRecordV1 {
   lesson: {
     videoId: string;
     canonicalUrl: string;
+    playlistId?: string;
+    playlistVideoIds?: string[]; // actual ordered IDs returned by the IFrame API
+    playlistIndex?: number;
+    title?: string; // title returned for the current IFrame item only
   };
   objective: string;
   goalMinutes: number; // integer, 5 through 240
@@ -225,66 +228,48 @@ interface CommitmentRecordV1 {
 
 `CommitmentRepository` encodes and decodes this record. Its successful read-back confirms what the Web Storage API currently returns; it is not a guarantee against later browser failure, user clearing data, same-origin script modification, or a concurrent tab race. `FocusController` owns transient eligibility and the last monotonic sample in memory only; no running clock is persisted. The UI derives remaining time and Focus Cup fill rather than storing redundant percentages, and separately tracks the last confirmed persisted raw value/revision, any dirty in-memory change, and `saved`/`not-saved`/`unverified`/`stale` status. When a valid record is reopened with `sessionStatus: "active"`, the runtime immediately treats it as interrupted and paused; it attempts a guarded, validated write marking it interrupted if the tab is current, and surfaces an unconfirmed or stale outcome honestly. The user must resume explicitly. Completion is stored as the learner's self-report, not inferred from any player field.
 
-Data path: setup text → URL and goal validators → candidate player → candidate acceptance → repository write → workspace; player/focus events → controller → eligible milliseconds and position snapshot → repository → My Learning/Cup; reload → repository decoder → paused My Learning state.
+Data path: setup text → URL/goal validation → candidate video or playlist cue → video-specific confirmation and actual playlist metadata → confirmed repository write → workspace; player/focus events → bounded controller → eligible milliseconds and position snapshot → repository → My Learning and Focus Cup; playlist selection → real playlist index/current item → same commitment update with activity retained; reload → repository decoder → paused My Learning state.
 
 ## File Structure
 
 ```text
 project/
-├── index.html                         # Vite document shell and metadata
-├── package.json                       # scripts and minimal dependencies
-├── package-lock.json                  # reproducible dependency resolution
-├── tsconfig.json                      # strict TypeScript options
-├── vite.config.ts                     # Vite and Vitest configuration
-├── playwright.config.ts               # Chromium E2E configuration
+├── index.html
+├── package.json
+├── package-lock.json
+├── tsconfig.json
+├── vite.config.ts
+├── playwright.config.ts
 ├── src/
-│   ├── main.tsx                        # React entry point
-│   ├── App.tsx                         # initial load and four-view coordinator
-│   ├── appServices.ts                  # production service composition root
+│   ├── main.tsx
 │   ├── domain/
-│   │   ├── commitment.ts               # types and safe status transitions
-│   │   ├── focusGoal.ts                # goal validation and cup/remainder math
-│   │   ├── focusAccounting.ts           # pure eligible-time state transitions
-│   │   └── youtubeUrl.ts                # allowlisted URL parsing and canonical ID
+│   │   ├── commitment.ts              # commitment and completion data rules
+│   │   ├── focusGoal.ts               # goal validation and progress math
+│   │   └── youtubeUrl.ts              # supported video and playlist URL parsing
 │   ├── services/
+│   │   ├── focus/
+│   │   │   ├── focusSignals.ts        # browser focus signal sampling
+│   │   │   └── focusController.ts     # bounded activity accounting
 │   │   ├── persistence/
-│   │   │   ├── commitmentRepository.ts  # sole localStorage read/write boundary
-│   │   │   └── commitmentCodec.ts        # JSON versioning and runtime validation
-│   │   ├── youtube/
-│   │   │   ├── iframeApiLoader.ts       # singleton official API script loader
-│   │   │   ├── youtubePlayerAdapter.ts  # typed YT.Player wrapper and cleanup
-│   │   │   └── playerPort.ts             # normalized player contract
-│   │   └── focus/
-│   │       ├── browserFocusSource.ts     # visibility/focus signal subscription
-│   │       └── focusController.ts        # timer, eligibility and pause decisions
-│   ├── features/
-│   │   ├── landing/LandingPage.tsx       # problem narrative and CTAs
-│   │   ├── setup/SetupPage.tsx           # lesson/objective/goal setup
-│   │   ├── learning/MyLearningPage.tsx  # saved current commitment
-│   │   └── study/StudyWorkspace.tsx      # player, controls and session states
-│   ├── components/
-│   │   ├── FocusCup.tsx                  # private proportional SVG/CSS cup
-│   │   ├── GoalSelector.tsx              # preset/custom accessible controls
-│   │   ├── InlineStatus.tsx              # accessible status and error messages
-│   │   └── ConfirmDialog.tsx              # replacement/completion confirmation
-│   └── styles/
-│       ├── tokens.css                    # approved palette/type/spacing tokens
-│       ├── global.css                    # reset, base type, focus, motion rules
-│       └── app.css                       # responsive editorial and workspace layout
+│   │   │   ├── commitmentCodec.ts     # runtime validation and versioning
+│   │   │   └── commitmentRepository.ts # confirmed localStorage writes and stale detection
+│   │   └── youtube/
+│   │       ├── iframeApi.ts           # typed official IFrame API surface and loader
+│   │       └── playerAdapter.ts       # candidate confirmation, playback and playlist adapter
+│   └── ui/
+│       ├── App.tsx                    # navigation, setup, My Learning and study workspace
+│       ├── FocusCup.tsx               # accessible dimensional SVG cup
+│       └── styles.css                 # responsive visual system and reduced motion
 ├── tests/
-│   ├── unit/                             # Vitest domain, controller, codec tests
-│   ├── fakes/FakePlayerAdapter.ts         # controllable player test double
-│   ├── fakes/FakeFocusSignalSource.ts     # deterministic focus signal source
-│   ├── e2e/                              # Playwright application workflows
-│   │   ├── harness.html                   # test-only Vite entry, excluded from build
-│   │   └── harness.tsx                    # same App with fake player/focus services
-│   └── manual-youtube-checklist.md        # real Chromium/Firefox checks
-├── devpost/
-│   ├── learner-profile.md
-│   ├── scope.md
-│   ├── prd.md
-│   └── spec.md
-└── README.md                             # run, test, and demo instructions
+│   ├── unit/                          # domain, focus, persistence and player tests
+│   └── e2e/                           # real embed smoke test and deterministic workspace flows
+└── devpost/
+    ├── learner-profile.md
+    ├── scope.md
+    ├── prd.md
+    ├── spec.md
+    ├── checklist.md
+    └── manual-browser-checks.md
 ```
 
 ## External Services and Dependencies
@@ -294,7 +279,7 @@ project/
 - Script: `https://www.youtube.com/iframe_api` loaded once asynchronously.
 - Player: `new YT.Player(hostElement, { videoId, playerVars: { enablejsapi: 1, origin: window.location.origin, playsinline: 1 }, events })`.
 - Events used: `onReady`, `onStateChange`, `onError`, `onAutoplayBlocked`. State codes normalize to unstarted `-1`, ended `0`, playing `1`, paused `2`, buffering `3`, cued `5`.
-- Methods used: `cueVideoById`/candidate load, `playVideo`, `pauseVideo`, `seekTo`, `getPlayerState`, `getCurrentTime`, `getIframe`, and `destroy`.
+- Methods used: `cueVideoById`, `cuePlaylist`, `playVideoAt`, `playVideo`, `pauseVideo`, `seekTo`, `getPlayerState`, `getCurrentTime`, `getPlaylist`, `getPlaylistIndex`, `getVideoData`, `getIframe`, and `destroy`.
 - Error handling: 2 invalid parameter, 5 HTML5/player issue, 100 unavailable/private, 101/150 embedding disallowed, 153 missing referer/client identification. Messages are user-readable and preserve an old commitment on candidate failure.
 - No API key or credentials are used for this client-side embed. Network access and a valid page origin/referer are required; `file://` is unsupported. Keep the standard YouTube controls and branding. Do not access the cross-origin iframe DOM.
 - Documentation: [YouTube IFrame Player API](https://developers.google.com/youtube/iframe_api_reference).
@@ -344,6 +329,7 @@ The build should work in narrow, verifiable slices. Each slice must type-check a
 
 - URL allowlist and ID parsing, lookalike hosts, malformed IDs, unsupported schemes; failed candidate replacement leaves the serialized old record unchanged.
 - Goal custom validation for empty, text, fractional, negative, boundaries 5/240, and out-of-range values; changing a goal preserves cumulative milliseconds and recalculates fill/remainder.
+- Playlist parsing covers playlist-only URLs and watch URLs containing both v and list parameters; Playwright verifies actual-entry count/order, panel expansion/collapse, selection, and preserved activity; unavailable playlist data preserves the prior commitment and shows the honest fallback.
 - Fake player state transitions for unstarted/cued/playing/paused/buffering/ended/errors/autoplay blocked.
 - Fake clock tests: only eligible samples add time; stale gaps >1.5 seconds are discarded; buffering, paused, error, hidden, confirmed loss, and ambiguous states add zero; duplicated start callbacks do not create multiple clocks.
 - Focus controller tests: iframe active + `hasFocus=false` becomes ambiguous (no credit, no pause); raw blur alone does not pause; confirmed loss pauses; focus return does not call play; visible/hidden transitions behave as designed. Repeated identical player/focus events and duplicate timer delivery cannot double-count; a recovery recheck that stays ambiguous grants no credit, while a confirmed recheck starts with a fresh baseline only.
@@ -368,6 +354,7 @@ Use real embeddable YouTube videos in desktop Chromium and Firefox at `http://12
 - **Learner-approved:** React + TypeScript + Vite; no backend, database, authentication, cloud sync, or copied Bolt implementation.
 - **Learner-approved:** one versioned, runtime-validated `localStorage` record behind a single repository; preserve raw corrupt/future-schema data; never claim failed writes were saved.
 - **Learner-approved:** direct official YouTube IFrame API behind a small typed adapter; controllable fake adapter for automated tests and real-browser YouTube verification.
+- **Learner-approved scope amendment:** one supplied YouTube playlist is an alternative single active commitment. Show actual ordered IDs and the current title only when the IFrame API returns it; do not add playlist discovery, a Data API key, or a metadata service.
 - **Learner-approved:** Vitest with fake clock/player for deterministic tests and Playwright Chromium for app-level browser workflows; manual YouTube/focus checks in real Chromium and Firefox.
 - **Learner-approved policy, implementation boundary:** page hidden is a confirmed interruption; raw blur triggers a recheck only; ambiguous iframe-focus state earns no time but does not itself pause; confirmed focus loss pauses and requires explicit resume.
 - **Learner-approved design direction carried from PRD:** editorial warm-white/lime/pink/ink UI, original CSS/SVG cup, responsive accessible layout, restrained reduced-motion animation.

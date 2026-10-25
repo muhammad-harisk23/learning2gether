@@ -1,4 +1,4 @@
-import type { YouTubeLesson } from "./youtubeUrl";
+import type { ConfirmedYouTubeLesson } from "./youtubeUrl";
 
 export type LessonStatus = "unfinished" | "completed";
 export type SessionStatus = "not-started" | "active" | "interrupted" | "finished";
@@ -6,7 +6,7 @@ export type SessionStatus = "not-started" | "active" | "interrupted" | "finished
 export interface CommitmentRecordV1 {
   schemaVersion: 1;
   revision: number;
-  lesson: YouTubeLesson;
+  lesson: ConfirmedYouTubeLesson;
   objective: string;
   goalMinutes: number;
   lastConfirmedPositionMs: number;
@@ -23,7 +23,7 @@ export function parseObjective(value: string): string | null {
 }
 
 export function newCommitment(
-  lesson: YouTubeLesson,
+  lesson: ConfirmedYouTubeLesson,
   objective: string,
   goalMinutes: number,
   now = new Date(),
