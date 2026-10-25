@@ -2,8 +2,8 @@ import { expect, test } from "@playwright/test";
 
 test("early real YouTube embed accepts a candidate and saves it before study", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("playlist");
-  await page.getByRole("button", { name: /Start finishing what you learn/ }).first().click();
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("shortage of");
+  await page.getByRole("button", { name: /Start with one lesson/ }).first().click();
   await page.getByLabel("YouTube lesson or playlist URL").fill("https://youtube.com.evil.example/watch?v=M7lc1UVf-VE");
   await page.getByLabel(/What do you want to understand/).fill("Learn how the YouTube player works");
   await page.getByRole("button", { name: "Start focused study" }).click();

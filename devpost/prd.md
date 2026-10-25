@@ -19,31 +19,33 @@ Source: `scope.md > Who It's For`, `The Core Loop`, and `In Scope > Required sol
 
 ## The Core Journey
 
-1. **Understand the promise.** A first-time visitor lands on an editorial page that explains the resource-search cycle without blaming students or claiming everyone behaves the same way. The first viewport communicates the problem and offers an immediate way to begin.
-2. **Start without onboarding friction.** “Start finishing what you learn” opens a separate setup view. The student pastes one YouTube video or playlist URL, writes a short objective, and chooses a personal focus-time goal. Same-browser storage is explained concisely.
+1. **Understand the promise.** Home always opens on the editorial page, including when a commitment is saved. It explains the resource-search cycle without blaming students or claiming everyone behaves the same way. The first viewport offers **Start with one lesson** and, when a saved commitment exists, a contextual **Continue Learning** action; **My Learning** remains a separate navigation destination.
+2. **Start without onboarding friction.** “Start with one lesson” opens a separate setup view. The student pastes one YouTube video or playlist URL, writes a short objective, and chooses a personal focus-time goal. Same-browser storage is explained concisely.
 3. **Load and enter deliberately.** “Start focused study” validates a supported video or playlist URL and waits for the selected video or playlist item to be confirmed by a video-specific IFrame API state. Invalid or unplayable candidates produce a helpful inline error and preserve entered values and any current commitment. On a successful load, the workspace opens and attempts playback once because the student explicitly asked to start. If scripted playback is blocked, the player stays paused and the student is told to press Play inside YouTube.
 4. **Study with honest feedback.** The YouTube player is the workspace's main visual element. The student sees their objective, focus goal, second-level live activity, saved/unsaved totals, remaining time to goal, Focus Cup, and current focus/playback state. A supplied playlist has an accessible control showing YouTube's actual entry count/order and permits item selection without resetting commitment activity. The IFrame API exposes ordered IDs and the current item's title, not titles for every playlist item; other entries are identified by their actual IDs. Activity accrues only from observed eligible playback while the page is visible and browser-reported focus is present.
 5. **Handle interruption safely.** On a reported tab switch, minimize, or loss of focus, pause local playback where supported and stop recording eligible activity. Explain that playback paused. Returning to the page never resumes automatically; the student chooses Resume.
 6. **End a study session, not the commitment.** “Finish session” pauses playback where supported, checkpoints the latest confirmed position and eligible activity, and may offer a short reflection. If the lesson is unfinished, it remains the active commitment and retains its cumulative activity. The focus-time goal never ends playback or marks a lesson complete.
 7. **Mark a lesson complete only by choice.** The student can separately choose **Mark Lesson Complete** in the workspace and confirm. This ends an active study session, pauses playback where supported, saves current state and eligible recorded focused activity, and marks the commitment completed as the student's self-report. Goal attainment, video end, position, and Finish session never complete the lesson. Completion does not imply understanding, mastery, or exam readiness.
-8. **Continue later or start another lesson.** When the same browser opens again, a returning student goes directly to My Learning, not through the landing story or setup. The saved video or playlist, selected playlist item, objective, position, goal, cumulative recorded focused activity, status, and Focus Cup return. An unfinished commitment has Continue Learning, which opens paused at the saved position. A completed commitment stays visibly completed and offers Start another lesson without autoplay.
+8. **Continue later or start another lesson.** When the same browser opens again, Home remains the entry point and the full product story stays available. A prominent contextual **Continue Learning** action opens the saved unfinished commitment paused at the confirmed position; **My Learning** separately opens the full saved-commitment dashboard. The saved video or playlist, selected playlist item, objective, position, goal, cumulative recorded focused activity, status, and Focus Cup remain unchanged while navigating. A completed commitment remains visibly completed in My Learning and offers **Start another lesson** without autoplay.
 9. **Change a commitment intentionally.** If the student asks to replace an unfinished lesson, explain the effect and offer Continue or Replace. Load the supported candidate while leaving the old commitment intact. If the candidate fails, preserve the old commitment and progress. In the current required scope, a successful replacement replaces the old active record after explicit confirmation; the new lesson has its own objective and goal and starts with zero recorded focused activity. Never transfer time between lessons. Persistent Previous Learning history is a proposed post-core amendment below, not a required behavior.
 
 Sources: `scope.md > The Core Loop`, `What "Working" Looks Like`, `In Scope > Required solo learning`, and `Success and Acceptance Criteria`.
 
 ## Screens and Layout
 
-### 1. Editorial landing page — first visit
+### 1. Home — editorial landing page
 
-The first visit starts with a strong hero: **K12Learn2Gether**, **“You don't need another playlist. You need to finish the one you started.”**, and the supporting copy: **“The lectures are free. The teachers are excellent. The study plans are everywhere. Yet somehow, exams get closer while the unfinished lessons keep growing.”** Introduce the positioning **“Less searching. More finishing.”** and the copy **“Already found a teacher you trust? Bring your lesson, set one goal, and focus on finishing what you start.”** The primary CTA, **Start finishing what you learn**, opens Setup. **See how it works** moves to the explanation on the same page. The CTA is available without reading the full page.
+The hero leads with **“You don't have a shortage of lessons. You have a shortage of finished learning.”** Explain that exams may be approaching while excellent free teachers are available and the student wants to learn; uncertainty about the best teacher or roadmap can lead to comparing resources, saving playlists, switching after a video or two, and starting over. Make clear that this is a workflow problem, not a character flaw. Keep the positioning **“Less searching. More finishing.”** and the promise **“Bring what you already want to learn. We help you actually finish it.”** The primary **Start with one lesson** CTA opens Setup. When an unfinished commitment exists, show **Continue Learning** in the first viewport; for a completed commitment, show **My Learning**. **See how it works** moves to the explanation on the same page.
 
 Below the hero, keep the requested narrative in this order:
 
-1. The resource-search cycle: Search → Compare → Save → Start → Switch → Repeat. Explain that searching for the perfect resource can replace using a good resource consistently. Use a restrained, accessible visual treatment, not fabricated data.
-2. The connected problems: Resource FOMO; distraction and fragmented tools; unfinished lessons and unclear recorded progress. Use empathetic examples grounded in the learner's shared experience: comparing teachers after saving a playlist, leaving YouTube to check a separate timer or message, or returning unsure which lesson position they reached. Present these as relatable situations, not statistics or universal claims.
-3. The philosophy: “Bring what you already want to learn. We help you actually finish it.” The student chooses the teacher and resource; the app helps them commit, focus, preserve progress, and continue.
-4. Four current capabilities only: one lesson and goal; browser-supported focus protection; saved lesson position and recorded focused activity; Continue Learning and the factual Focus Cup.
-5. A second CTA to Setup. No signup, course discovery, fake metrics, testimonials, or planned-feature claims.
+1. The unfinished-learning cycle: exam pressure builds → search for the “best” teacher or roadmap → save multiple playlists → watch one or two videos → a recommendation, Short, different teacher, or roadmap restarts the search → chosen lessons remain unfinished while time goes to switching. Use a restrained, accessible visual treatment, not fabricated data.
+2. The connected problems: Resource FOMO; distraction and fragmented tools; unfinished lessons and unclear recorded progress. Use empathetic examples as relatable situations, not statistics or universal claims.
+3. Why existing approaches may leave a continuity gap: YouTube has valuable lessons but also discovery paths away from the chosen lesson; a playlist organizes videos but does not create a personal commitment or focused-study workflow; a generic timer does not distinguish observed playback from paused or hidden periods; a blocker may restrict access without preserving lesson, goal, and progress together; separate notes, timers, playlists, and records create context switching. Describe these limits fairly and specifically; do not claim all alternatives fail.
+4. The philosophy: “Bring what you already want to learn. We help you actually finish it.” Students keep their trusted teacher and content; the app supports commitment, focus, saved progress, and continuity without promising exam results.
+5. The actual workflow: choose a trusted lesson or playlist; set an objective and customizable focus-time goal; study in the workspace; record activity only when player and browser signals meet the approved eligibility conditions; when the page is hidden, request a pause where supported and stop crediting activity; return to the saved lesson; see recorded activity and Focus Cup progress toward the goal. Explain browser-signal limitations honestly.
+6. Four current capabilities only: one lesson and goal; browser-supported focus protection; saved lesson position and recorded focused activity; Continue Learning and the factual Focus Cup.
+7. A second CTA to Setup. No signup, course discovery, fake metrics, testimonials, or planned-feature claims.
 
 The landing page is editorial and scannable; it is not a dashboard or a gate before study. On narrow screens, the narrative becomes a single readable column, the cycle illustration remains understandable without animation, and primary CTAs remain easy to reach. No horizontal scrolling.
 
@@ -60,9 +62,9 @@ Setup is a separate, quiet view with heading **“One lesson. One intention. One
 
 The setup is a single clear task, not a wizard. URL, objective, and goal errors are shown beside the relevant input, associated with it for assistive technology, and do not clear other entered values. During loading, show a clear in-progress state and prevent duplicate submissions. When replacing an active commitment, this view is reached only after the student intentionally chooses Replace; the previous commitment remains saved until the candidate successfully loads.
 
-### 3. My Learning — returning student home
+### 3. My Learning — saved commitment dashboard
 
-A saved current commitment—unfinished or completed—routes directly to My Learning. The editorial landing page does not appear first. The single current commitment dominates the view, in one composed editorial layout rather than a grid of metric cards. Show:
+A saved current commitment—unfinished or completed—is shown here when the student chooses **My Learning**. This destination is distinct from Home and Study Workspace. The single current commitment dominates the view, in one composed editorial layout rather than a grid of metric cards. Show:
 
 - The selected video or playlist and its YouTube attribution. For playlists, show actual count/order and the current selection; show other items by their real video IDs unless YouTube supplies their titles. The IFrame API exposes only the current video's title.
 - The personal learning objective.
@@ -127,19 +129,20 @@ Source: `scope.md > Inspiration & Identity`, `In Scope > Required solo learning`
 
 ## Features and Behavior
 
-### Landing, first visit, and entry
+### Home, saved-return, and entry
 
-- A student with no saved commitment sees the editorial landing page. Its hero communicates the problem in the first screen and provides the primary Start CTA plus an in-page “See how it works” action.
+- Every student opens on Home, whether or not a commitment exists. The hero explains the problem, provides the primary Start CTA, and provides an in-page “See how it works” action.
 - Start CTAs navigate to Setup, not to a form hidden deep in the landing page. “See how it works” scrolls to the story section without trapping the student there.
 - The page communicates resource FOMO, fragmented study, and unfinished learning without asserting universal behavior or inventing statistics.
-- A student with a saved current commitment opens My Learning directly. Continue Learning is primary for an unfinished lesson; Start another lesson is shown for a completed one. Neither path forces the landing story.
+- When an unfinished commitment exists, Home shows a contextual Continue Learning action in the first viewport; it opens the saved lesson paused. A completed commitment gets a My Learning action instead. The header My Learning action always opens the separate dashboard and never starts playback.
 
 Acceptance criteria (source: `scope.md > The Core Loop`, `Who It's For`, `What "Working" Looks Like`):
 
 - [ ] A first-time visitor can explain the product's promise from the first viewport and reach Setup with one primary CTA.
 - [ ] “See how it works” reaches the explanatory section; a CTA near the conclusion also opens Setup.
-- [ ] A returning student with an unfinished saved commitment sees My Learning and Continue Learning without first scrolling through the landing story.
-- [ ] A returning student with a completed current commitment sees its Completed state and Start another lesson without first scrolling through the landing story or autoplaying.
+- [ ] A returning student opens Home, sees the full problem story and contextual Continue Learning action, and can separately open My Learning from navigation.
+- [ ] Continue Learning opens the saved unfinished commitment paused, preserving its selected item, objective, goal, recorded activity, and position.
+- [ ] A completed commitment stays visible as Completed in My Learning and offers Start another lesson without autoplaying.
 - [ ] Landing content contains no fake statistics, testimonials, metrics, unbuilt-feature claims, or forced signup.
 
 ### Setup and candidate lesson loading
@@ -235,7 +238,7 @@ Source: `scope.md > In Scope > Required solo learning` and `Success and Acceptan
 
 - Product name and positioning are **K12Learn2Gether — Less Searching. More Finishing.**; promise: “Bring what you already want to learn. We help you actually finish it.”
 - Solo learning and continuity are the required product; collaboration is optional and only considered after solo acceptance passes.
-- First-time flow: editorial landing → separate focused Setup → workspace. Returning students bypass the landing and open My Learning.
+- Navigation: Home is always the editorial entry point; My Learning is the distinct saved-commitment dashboard; Continue Learning opens the saved unfinished commitment in the paused workspace. Navigating among these views does not finish a session or reset progress.
 - Default goal is 25 minutes; 15/25/45 presets and custom whole minutes 5–240 are available. Goal changes never reset recorded focused activity.
 - Start focused study attempts playback once after successful load; blocked autoplay falls back to an explicit Play instruction. Resume after any interruption is always user-initiated.
 - A study session is one period; a focus-time goal is an activity target; a learning commitment is the active lesson/objective; lesson completion is separate. Finishing a session does not finish its lesson; only a confirmed Mark Lesson Complete action does.
@@ -247,7 +250,7 @@ Source: `scope.md > In Scope > Required solo learning` and `Success and Acceptan
 
 ## What We're Building
 
-The required POC is a polished, responsive first-visit landing page, separate lesson/goal Setup view, returning-student My Learning home, and focused YouTube workspace. It supports one active commitment, explicit safe replacement, validated custom goals, browser-local continuity, observable focus protection, Finish session distinct from a separately confirmed Mark Lesson Complete action, recoverable player errors, and an accurate private Focus Cup. Optional finish reflection is included only if it does not delay core behavior. The 2–3 minute demo shows actual application behavior, beginning with the product problem and moving quickly to a real lesson, focus pause, restored Continue Learning state, and the distinct completion flow. The first ten seconds establish the problem and product promise; the demo reaches working controls early rather than spending its opening on slides. Any displayed activity is genuinely recorded; no seeded or accelerated fake progress is allowed.
+The required POC is a polished, responsive editorial Home that remains the entry point for new and returning students, a separate lesson/goal Setup view, a distinct saved-commitment My Learning dashboard, and a focused YouTube workspace. It supports one active commitment, explicit safe replacement, validated custom goals, browser-local continuity, observable focus protection, Finish session distinct from a separately confirmed Mark Lesson Complete action, recoverable player errors, and an accurate private Focus Cup. Optional finish reflection is included only if it does not delay core behavior. The 2–3 minute demo shows actual application behavior, beginning with the product problem and moving quickly to a real lesson, focus pause, restored Continue Learning state, and the distinct completion flow. The first ten seconds establish the problem and product promise; the demo reaches working controls early rather than spending its opening on slides. Any displayed activity is genuinely recorded; no seeded or accelerated fake progress is allowed.
 
 ## Deferred From the POC
 

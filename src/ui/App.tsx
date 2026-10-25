@@ -9,6 +9,7 @@ import { PlayerAdapter, type CandidateResult, type CurrentVideo, type PlayerStat
 import { FocusCup, formatActivity } from "./FocusCup";
 
 type Page = "landing" | "setup" | "learning" | "study" | "recovery";
+type StudyExitDestination = "home" | "learning";
 type SetupValues = { url: string; objective: string; goal: string };
 type PendingLesson = { lesson: YouTubeLesson; objective: string; goalMinutes: number };
 const emptySetup: SetupValues = { url: "", objective: "", goal: "25" };
@@ -18,7 +19,9 @@ export function App() {
   const [loaded] = useState<LoadResult>(() => repository.load());
   const [record, setRecord] = useState<CommitmentRecordV1 | null>(loaded.status === "valid" ? loaded.record : null);
   const recordRef = useRef(record);
-  const [page, setPage] = useState<Page>(loaded.status === "empty" ? "landing" : loaded.status === "valid" ? "learning" : "recovery");
+  const [page, setPage] = useState<Page>(loaded.status === "empty" || loaded.status === "valid" ? "landing" : "recovery");
+  const setupOrigin = useRef<"landing" | "learning">("landing");
+  const studyNavigation = useRef<((destination: StudyExitDestination) => void) | null>(null);
   const [setupValues, setSetupValues] = useState<SetupValues>(emptySetup);
   const [setupError, setSetupError] = useState("");
   const [pending, setPending] = useState<PendingLesson | null>(null);
@@ -49,7 +52,8 @@ export function App() {
         : "The session is paused in memory, but its interrupted state could not be saved.");
   }, [repository]);
 
-  function goToSetup() {
+  function goToSetup(origin: "landing" | "learning" = "landing") {
+    setupOrigin.current = origin;
     setSetupError("");
     setPage("setup");
   }
@@ -97,37 +101,46 @@ export function App() {
 
   return <div className={page === "study" ? "app-shell study-mode" : "app-shell"}>
     <header className="site-header">
-      <button className="wordmark" onClick={() => setPage(record ? "learning" : "landing")} aria-label="K12Learn2Gether home">
+      <button className="wordmark" onClick={() => page === "study" ? studyNavigation.current?.("home") : setPage("landing")} aria-label="K12Learn2Gether home">
         <span className="wordmark-symbol" aria-hidden="true">K<span>✦</span></span>
         <span>K12Learn2Gether</span>
       </button>
-      <div className="header-right"><span className="header-tag">LESS SEARCHING. MORE FINISHING.</span>{record && <button className="text-button" onClick={() => setPage("learning")}>My Learning <span aria-hidden="true">↗</span></button>}</div>
+      <div className="header-right"><span className="header-tag">LESS SEARCHING. MORE FINISHING.</span>{record && <button className="text-button" onClick={() => page === "study" ? studyNavigation.current?.("learning") : setPage("learning")}>My Learning <span aria-hidden="true">↗</span></button>}</div>
     </header>
 
     {storageWarning && <div className="storage-warning" role="alert">{storageWarning}</div>}
 
     <main className={page === "study" ? "study-app-main" : undefined}>
-      {page === "landing" && <Landing onStart={goToSetup} />}
-      {page === "setup" && <Setup values={setupValues} onChange={setSetupValues} error={setupError} onError={setSetupError} replacing={!!record} onBack={() => setPage(record ? "learning" : "landing")} onStart={startCandidate} />}
-      {page === "study" && <StudyWorkspace key={pending?.lesson.playlistId ?? pending?.lesson.videoId ?? record?.lesson.playlistId ?? record?.lesson.videoId ?? "none"} candidate={pending} record={record} storageWarning={storageWarning} onUpdate={onUpdate} onCandidateAccepted={onCandidateAccepted} onCandidateError={(message) => { setSetupError(message); setPending(null); setPage("setup"); }} onExit={() => setPage(record ? "learning" : "setup")} />}
-      {page === "learning" && record && <LearningHome record={record} onContinue={() => { setPending(null); setPage("study"); }} onStartAnother={goToSetup} />}
+      {page === "landing" && <Landing record={record} onStart={() => goToSetup("landing")} onContinue={() => { setPending(null); setPage("study"); }} onMyLearning={() => setPage("learning")} />}
+      {page === "setup" && <Setup values={setupValues} onChange={setSetupValues} error={setupError} onError={setSetupError} replacing={!!record} onBack={() => setPage(setupOrigin.current)} onStart={startCandidate} />}
+      {page === "study" && <StudyWorkspace key={pending?.lesson.playlistId ?? pending?.lesson.videoId ?? record?.lesson.playlistId ?? record?.lesson.videoId ?? "none"} candidate={pending} record={record} storageWarning={storageWarning} navigationRef={studyNavigation} onUpdate={onUpdate} onCandidateAccepted={onCandidateAccepted} onCandidateError={(message) => { setSetupError(message); setPending(null); setPage("setup"); }} onExit={(destination) => { setPending(null); setPage(destination === "home" ? "landing" : "learning"); }} />}
+      {page === "learning" && record && <LearningHome record={record} onContinue={() => { setPending(null); setPage("study"); }} onStartAnother={() => goToSetup("learning")} />}
       {page === "recovery" && <section className="recovery section-pad"><p className="eyebrow">LOCAL SAVE NEEDS ATTENTION</p><h1>We couldn’t safely read your saved lesson.</h1><p>Your browser’s saved data may be unavailable or in a format this version cannot read. This page will not overwrite it. Check that site storage is available, then reload. If you changed the host or port, return to the original address.</p><button className="button button-ink" onClick={() => window.location.reload()}>Retry loading</button></section>}
     </main>
     {page !== "study" && <footer className="site-footer"><span>K12Learn2Gether</span><span>One lesson. One goal. Your pace.</span></footer>}
   </div>;
 }
 
-function Landing({ onStart }: { onStart: () => void }) {
+const learningCycle = [
+  ["Exam pressure", "The syllabus feels bigger as the exam date gets closer."],
+  ["Search for the best", "A trusted teacher is good, but maybe another roadmap is better."],
+  ["Save playlists", "Useful lessons collect faster than study time."],
+  ["Watch one or two", "The first videos start well; the next step gets less clear."],
+  ["Switch again", "A recommendation or a new plan sends the search back to the start."],
+  ["Leave lessons unfinished", "Time goes into switching, while the chosen lesson waits."],
+];
+
+function Landing({ record, onStart, onContinue, onMyLearning }: { record: CommitmentRecordV1 | null; onStart: () => void; onContinue: () => void; onMyLearning: () => void }) {
   return <>
     <section className="hero section-pad">
-      <div className="hero-copy"><p className="eyebrow"><span className="eyebrow-dot" /> THE STUDY SPACE FOR FINISHING</p><h1>You don’t need<br />another <em>playlist.</em><br />You need to finish<br />the one you started<span className="period">.</span></h1><p className="hero-lede">The lectures are free. The teachers are excellent. The study plans are everywhere. Yet somehow, exams get closer while the unfinished lessons keep growing.</p><div className="hero-actions"><button className="button button-ink" onClick={onStart}>Start finishing what you learn <span aria-hidden="true">↗</span></button><a className="text-link" href="#how-it-works">See how it works <span aria-hidden="true">↓</span></a></div></div>
+      <div className="hero-copy"><p className="eyebrow"><span className="eyebrow-dot" /> THE STUDY SPACE FOR FINISHING</p><h1>You don't have a shortage of lessons. You have a shortage of <em>finished learning.</em></h1><p className="hero-lede">Exams may be getting closer. There are excellent free teachers, and you want to learn. But comparing teachers, saving playlists, and restarting a plan can take the time meant for studying. That is a workflow problem, not laziness.</p><div className="hero-actions"><button className="button button-ink" onClick={onStart}>Start with one lesson <span aria-hidden="true">↗</span></button>{record?.lessonStatus === "unfinished" && <button className="button button-lime" onClick={onContinue}>Continue Learning <span aria-hidden="true">↗</span></button>}{record?.lessonStatus === "completed" && <button className="button button-lime" onClick={onMyLearning}>My Learning <span aria-hidden="true">↗</span></button>}<a className="text-link" href="#how-it-works">See how it works <span aria-hidden="true">↓</span></a></div></div>
       <div className="hero-art" aria-hidden="true"><div className="art-note art-note-top">ONE GOOD<br />LESSON</div><div className="art-orbit"><div className="art-orbit-inner"><span className="art-play">▶</span></div></div><div className="art-note art-note-bottom">A CLEAR<br />NEXT STEP <span>↗</span></div><div className="art-spark">✳</div><div className="art-caption">A LITTLE LESS SCROLLING.<br />A LOT MORE STARTING.</div></div>
       <div className="hero-index">01 / THE PROBLEM</div>
     </section>
-    <section id="how-it-works" className="story section-pad"><div className="story-intro"><p className="eyebrow">THE LOOP WE KNOW TOO WELL</p><h2>Finding the perfect resource can become the thing that keeps you from learning.</h2></div><div className="cycle" aria-label="The resource search cycle: Search, Compare, Save, Start, Switch, Repeat">{["Search", "Compare", "Save", "Start", "Switch", "Repeat"].map((step, i) => <div className="cycle-step" key={step}><span className="cycle-index">0{i + 1}</span><strong>{step}</strong><span className="cycle-arrow" aria-hidden="true">↗</span></div>)}</div><div className="story-aside">The next video rarely solves the hard part: staying with the one you chose.</div></section>
-    <section className="manifesto section-pad"><p className="eyebrow">A SMALLER, STRONGER START</p><h2>Bring what you already want to learn. <em>We help you actually finish it.</em></h2><p>Already found a teacher you trust? Bring your lesson, set one goal, and focus on finishing what you start.</p><button className="button button-lime" onClick={onStart}>Start with one lesson <span aria-hidden="true">↗</span></button></section>
-    <section className="features section-pad"><div><p className="eyebrow">WHAT YOU CAN DO HERE</p><h2>A focused place for the lesson you picked.</h2></div><div className="feature-grid"><article><span>01 / COMMIT</span><h3>One lesson. One goal.</h3><p>Paste a YouTube lesson and name what you want to understand.</p></article><article><span>02 / FOCUS</span><h3>Make the time count.</h3><p>Record activity only while playback and browser focus can be confirmed.</p></article><article><span>03 / RETURN</span><h3>Pick up your thread.</h3><p>Continue from your saved lesson and playback position in this browser.</p></article><article><span>04 / SEE IT</span><h3>A cup that tells the truth.</h3><p>Your Focus Cup reflects recorded activity toward your own time goal.</p></article></div></section>
-    <section className="closing-cta section-pad"><p className="eyebrow">READY WHEN YOU ARE</p><h2>Less searching.<br /><em>More finishing.</em></h2><button className="button button-ink" onClick={onStart}>Start finishing what you learn <span aria-hidden="true">↗</span></button></section>
+    <section id="how-it-works" className="story section-pad"><div className="story-intro"><p className="eyebrow">THE LOOP THAT STEALS STUDY TIME</p><h2>Trying to find the perfect resource can quietly replace learning.</h2></div><ol className="cycle" aria-label="A common unfinished-learning cycle">{learningCycle.map(([title, detail], i) => <li className="cycle-step" key={title}><span className="cycle-index">0{i + 1}</span><strong>{title}</strong><p>{detail}</p></li>)}</ol><div className="story-aside">Some students recognize this loop. It is not laziness; it is a hard workflow to escape.</div></section>
+    <section className="manifesto section-pad"><p className="eyebrow">WHY CONTINUITY IS HARD</p><h2>Good tools help. <em>Each one still leaves a gap.</em></h2><ul className="tool-gaps"><li><strong>YouTube</strong><span>Has excellent lessons and also discovery paths that can pull attention away from the one chosen.</span></li><li><strong>Playlists</strong><span>Organize videos, but do not create a personal commitment or focused-study workflow.</span></li><li><strong>Generic timers</strong><span>Count elapsed time without knowing whether the lesson is playing or the page is hidden.</span></li><li><strong>Blockers</strong><span>Can restrict access without keeping lesson, goal, and saved progress together.</span></li><li><strong>Separate notes and trackers</strong><span>Can add context switching between the lesson, timer, playlist, and progress record.</span></li></ul><p>These tools can still help; this app focuses on the continuity between choosing one lesson and returning to it.</p></section>
+    <section className="features section-pad"><div><p className="eyebrow">A SMALLER, STRONGER START</p><h2>Bring what you already want to learn. <em>We help you actually finish it.</em></h2><p className="workflow-intro">Keep the teacher and lesson you trust. Choose one next step and make a little room to focus.</p><ol className="workflow-list"><li>Choose a trusted YouTube lesson or playlist.</li><li>Write what you want to understand and set a personal focus-time goal.</li><li>Study with YouTube's standard player controls.</li><li>Activity records only when observed playback and browser focus signals meet the eligibility rules.</li><li>When the page becomes hidden, the app requests a pause where supported and stops crediting time. Browser signals cannot prove attention or guarantee a pause in every case.</li><li>Return to the saved lesson and position; choose when to resume.</li><li>See recorded focused activity in your private Focus Cup. It reflects time, not understanding or exam results.</li></ol><button className="button button-lime" onClick={onStart}>Start with one lesson <span aria-hidden="true">↗</span></button></div><div className="feature-grid"><article><span>01 / COMMIT</span><h3>One lesson. One goal.</h3><p>Paste a YouTube lesson and name what you want to understand.</p></article><article><span>02 / FOCUS</span><h3>Make the time count.</h3><p>Record activity only while playback and browser focus can be confirmed.</p></article><article><span>03 / RETURN</span><h3>Pick up your thread.</h3><p>Continue from your saved lesson and playback position in this browser.</p></article><article><span>04 / SEE IT</span><h3>A cup that tells the truth.</h3><p>Your Focus Cup reflects recorded activity toward your own time goal.</p></article></div></section>
+    <section className="closing-cta section-pad"><p className="eyebrow">READY WHEN YOU ARE</p><h2>Less searching.<br /><em>More finishing.</em></h2><button className="button button-ink" onClick={onStart}>Start with one lesson <span aria-hidden="true">↗</span></button></section>
   </>;
 }
 
@@ -164,14 +177,15 @@ function LearningHome({ record, onContinue, onStartAnother }: { record: Commitme
 type SaveResult = { status: "saved"; record: CommitmentRecordV1 } | { status: "not-saved" | "unverified" | "stale" };
 type CommitmentPatch = Partial<Omit<CommitmentRecordV1, "schemaVersion" | "revision" | "createdAt" | "updatedAt">>;
 
-function StudyWorkspace({ candidate, record, storageWarning, onUpdate, onCandidateAccepted, onCandidateError, onExit }: {
+function StudyWorkspace({ candidate, record, storageWarning, navigationRef, onUpdate, onCandidateAccepted, onCandidateError, onExit }: {
   candidate: PendingLesson | null;
   record: CommitmentRecordV1 | null;
   storageWarning: string;
+  navigationRef: { current: ((destination: StudyExitDestination) => void) | null };
   onUpdate: (patch: CommitmentPatch) => SaveResult;
   onCandidateAccepted: (candidate: PendingLesson, lesson: Extract<CandidateResult, { status: "accepted" }>["lesson"]) => CommitmentRecordV1 | null;
   onCandidateError: (message: string) => void;
-  onExit: () => void;
+  onExit: (destination: StudyExitDestination) => void;
 }) {
   const host = useRef<HTMLDivElement>(null);
   const adapter = useRef<PlayerAdapter | null>(null);
@@ -388,13 +402,19 @@ function StudyWorkspace({ candidate, record, storageWarning, onUpdate, onCandida
     }
   }
 
-  function leaveWorkspace(): void {
+  function leaveWorkspace(destination: StudyExitDestination): void {
     interrupted.current = true;
     adapter.current?.pause();
     focus.current?.setSessionActive(false);
     saveCheckpoint();
-    onExit();
+    onExit(destination);
   }
+
+  useEffect(() => {
+    const navigate = (destination: StudyExitDestination) => leaveWorkspace(destination);
+    navigationRef.current = navigate;
+    return () => { if (navigationRef.current === navigate) navigationRef.current = null; };
+  }, [navigationRef, onExit]);
 
   function updateGoal(): void {
     const parsed = parseGoalMinutes(goalInput);
@@ -414,7 +434,7 @@ function StudyWorkspace({ candidate, record, storageWarning, onUpdate, onCandida
   const goalReached = !!localRecord.current && localRecord.current.cumulativeRecordedFocusedMs >= localRecord.current.goalMinutes * 60_000;
 
   return <section className="study-page">
-    <nav className="study-nav" aria-label="Study workspace navigation"><button className="wordmark" onClick={leaveWorkspace}><span className="back-glyph" aria-hidden="true">←</span> My Learning</button><span className="nav-current">{currentTitle || localRecord.current?.lesson.title || "Focused study"}</span><span className="nav-state">{state.toUpperCase()}</span></nav>
+    <nav className="study-nav" aria-label="Study workspace navigation"><button className="wordmark" onClick={() => leaveWorkspace("home")}><span className="back-glyph" aria-hidden="true">←</span> Back to Home</button><span className="nav-current">{currentTitle || localRecord.current?.lesson.title || "Focused study"}</span><span className="nav-state">{state.toUpperCase()}</span></nav>
     <div className="study-content section-pad">
       <div className="study-grid"><div className="study-main"><div className="player-frame"><div ref={host} className="player-host" /></div>
         {loading && <p className="player-status" role="status">Checking that this YouTube lesson can load…</p>}

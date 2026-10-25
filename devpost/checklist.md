@@ -12,7 +12,7 @@ Build mode: fast
 - [x] **1. A student can choose a lesson and open the real player**
   Becomes usable: The first visit explains the problem, Setup validates one lesson, objective, and goal, and a confirmed YouTube candidate is saved before opening a usable study workspace. No activity is claimed yet.
   Why now: This crosses the first-visit journey and tests the unfamiliar YouTube embed early; the Vite scaffold and visual foundation belong inside this first working step.
-  PRD ref: `prd.md > Landing, first visit, and entry`, `prd.md > Setup and candidate lesson loading`
+  PRD ref: `prd.md > Home, saved-return, and entry`, `prd.md > Setup and candidate lesson loading`
   Spec ref: `spec.md > Where It Runs and How Someone Tries It`, `spec.md > Look and Feel`, `spec.md > Editorial landing page`, `spec.md > Focused Setup view`, `spec.md > YouTube URL parser`, `spec.md > YouTube API loader and player adapter`, `spec.md > Commitment repository and runtime validation`
   Build: Scaffold React, TypeScript, and Vite at the canonical origin; create the editorial landing, accessible Setup, URL/goal validation, typed IFrame API adapter, and minimal workspace with actual standard YouTube controls. Add the minimal validated version-1 record needed to save a confirmed candidate before entering the workspace; full restoration and storage-fault safeguards follow in slice 2. Preserve form values on load failure and distinguish API readiness, candidate cue, and blocked autoplay. Establish the palette and responsive shell.
   Verify (mechanical): Run `npm run typecheck`, `npm test`, and `npm run build`; test URL/goal boundaries, candidate states/errors, initial validated commit, adapter lifecycle, and blocked autoplay with a fake player. Perform an early real-embed smoke check in Chromium and record its observed result separately from fake-player tests.
@@ -66,6 +66,7 @@ Build mode: fast
 
 ## Final Review
 
+- [ ] Re-test the Home-first saved-return story, separate My Learning destination, and workspace back-to-Home action; report any remaining issue and confirm readiness.
 - [ ] Final review complete — feedback resolved and learner confirms ready to ship
 
 ## Code Tour and App Map
@@ -82,3 +83,4 @@ Activity mode: pending
 
 ## Revisions
 - On 2026-10-25, the learner approved one supplied YouTube playlist as an alternative single active commitment. This remains narrow: actual IFrame API IDs/order, current title only, no Data API key or metadata service, and no discovery/collections.
+- On 2026-10-25, final review identified that saved records bypassed the editorial Home and the study back action opened My Learning. The approved POC now keeps Home as the entry point, makes My Learning a separate destination, and provides contextual Continue Learning; the landing story follows the supplied exam-pressure/resource-switching narrative. Scope remains unchanged. Automated checks pass; final learner retry is pending.

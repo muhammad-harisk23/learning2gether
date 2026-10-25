@@ -57,7 +57,7 @@ async function installFakeYouTube(page: Page): Promise<void> {
 
 async function beginStudy(page: Page, url: string): Promise<void> {
   await page.goto("/");
-  await page.getByRole("button", { name: /Start finishing what you learn/ }).first().click();
+  await page.getByRole("button", { name: /Start with one lesson/ }).first().click();
   await page.getByLabel("YouTube lesson or playlist URL").fill(url);
   await page.getByLabel(/What do you want to understand/).fill("Understand the lesson and finish the example");
   await page.getByRole("button", { name: "Start focused study" }).click();
@@ -137,12 +137,18 @@ test("bounded focus timer starts from PLAYING, pauses on hidden tab, and does no
   expect(beforeHidden.trim()).not.toBe("0:00");
 });
 
-test("sticky My Learning navigation restores confirmed state without autoplay", async ({ page }) => {
+test("workspace can return Home and separately open My Learning without autoplay", async ({ page }) => {
   await installFakeYouTube(page);
   await beginStudy(page, `https://www.youtube.com/watch?v=${firstVideo}`);
   await expect.poll(async () => (await page.locator(".timer-box strong").innerText()).trim()).not.toBe("0:00");
   const playCount = await page.evaluate(() => (window as any).__playCalls);
-  await page.locator(".study-nav").getByRole("button", { name: /My Learning/ }).click();
+  await page.locator(".study-nav").getByRole("button", { name: /Back to Home/ }).click();
+  await expect(page.getByRole("heading", { name: /shortage of lessons/i })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Continue Learning/ })).toBeVisible();
+  await page.getByRole("button", { name: /Continue Learning/ }).click();
+  await expect(page.locator(".player-host iframe")).toBeVisible();
+  await expect.poll(() => page.evaluate(() => (window as any).__playCalls)).toBe(playCount);
+  await page.getByRole("button", { name: /My Learning/ }).click();
   await expect(page.getByRole("heading", { name: "My Learning." })).toBeVisible();
   await expect(page.getByRole("button", { name: /Continue Learning/ })).toBeVisible();
   await page.getByRole("button", { name: /Continue Learning/ }).click();
@@ -210,7 +216,8 @@ test("failed replacement preserves confirmed progress, then a successful replace
   await expect.poll(async () => (await page.locator(".timer-box strong").innerText()).trim()).not.toBe("0:00");
   await page.getByRole("button", { name: "Pause", exact: true }).click();
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem("k12learn2gether.commitment")!).cumulativeRecordedFocusedMs)).toBeGreaterThan(0);
-  await page.locator(".study-nav").getByRole("button", { name: /My Learning/ }).click();
+  await page.locator(".study-nav").getByRole("button", { name: /Back to Home/ }).click();
+  await page.getByRole("button", { name: /My Learning/ }).click();
   await expect(page.getByRole("heading", { name: "My Learning." })).toBeVisible();
   const savedBeforeReplacement = await page.evaluate(() => localStorage.getItem("k12learn2gether.commitment"));
   const replacementId = "abcdefghijk";
@@ -270,8 +277,25 @@ test("desktop workspace fits the viewport and keeps essential controls visible a
       .toEqual({ height: viewport.height, width: viewport.width });
     await page.getByRole("button", { name: /Playlist/ }).click();
     await page.locator(".study-nav .wordmark").click();
-    await expect(page.getByRole("heading", { name: /My Learning/ })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /shortage of lessons/i })).toBeVisible();
   }
+});
+
+test("saved-return starts on editorial Home with a distinct My Learning destination", async ({ page }, testInfo) => {
+  await installFakeYouTube(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await beginStudy(page, `https://www.youtube.com/watch?v=${firstVideo}`);
+  await page.locator(".study-nav .wordmark").click();
+  const saved = await page.evaluate(() => localStorage.getItem("k12learn2gether.commitment"));
+  await page.reload();
+  await expect(page.getByRole("heading", { name: /shortage of lessons/i })).toBeVisible();
+  await expect(page.locator(".hero").getByRole("button", { name: "Start with one lesson" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Continue Learning/ })).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath("saved-return-home-1440x900.png") });
+  await expect(page.getByRole("heading", { name: "My Learning." })).toHaveCount(0);
+  await page.getByRole("button", { name: /My Learning/ }).click();
+  await expect(page.getByRole("heading", { name: "My Learning." })).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem("k12learn2gether.commitment"))).toBe(saved);
 });
 
 test("mobile study workspace scrolls accessibly without clipping the return navigation", async ({ page }) => {

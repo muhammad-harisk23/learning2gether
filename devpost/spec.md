@@ -23,7 +23,7 @@ The main tradeoff is keeping this as a browser-only, one-commitment product. Tha
 
 Implements `prd.md > The Core Journey`.
 
-1. **First visit:** `App` reads the commitment repository. An empty store routes to `LandingPage`; a valid record routes to `MyLearningPage`; a corrupt or inaccessible store routes to a clear recovery state without overwriting its contents.
+1. **Home and entry:** `App` reads the commitment repository. An empty or valid store opens the editorial Home; a valid record adds contextual Continue Learning and My Learning actions. My Learning opens the saved commitment dashboard, and Continue Learning opens the lesson paused. A corrupt or inaccessible store routes to a clear recovery state without overwriting its contents.
 2. **Setup:** the student enters a YouTube URL, objective, and goal. `youtubeUrl.ts` extracts a video ID only from approved YouTube hosts and paths. `focusGoal.ts` validates a whole-number goal from 5–240 minutes.
 3. **Candidate load:** `StudyCoordinator` creates one player through `YouTubePlayerAdapter`. The current saved commitment remains unchanged while the candidate is being checked. `onReady` means the player API can receive commands; it does not prove that the selected video is embeddable. The adapter observes video-specific state or error events. A candidate is not committed on API readiness alone. A failed candidate is destroyed, setup values remain, and the previous commitment is reloaded from the unchanged saved record.
 4. **First playback:** after a candidate has loaded without a player error, the app commits its lesson, objective, and goal through `CommitmentRepository`. Because the student explicitly pressed Start, it attempts playback once. If the browser blocks scripted playback, the app remains paused and shows the approved manual-play instruction. Neither readiness nor the Start click itself adds activity.
@@ -75,15 +75,15 @@ Implements `prd.md > Screens and Layout`, `prd.md > Look and Feel`, and `scope.m
 
 ### App shell and entry coordinator
 
-Loads the single saved commitment, chooses first-use, My Learning, or storage-recovery view, and manages transitions among Landing, Setup, My Learning, and Workspace. It remembers whether Setup was opened from Landing or My Learning so Back returns to the originating view. It passes domain actions to screens and keeps page navigation predictable without a routing dependency.
+Loads the single saved commitment, opens Home for both first-time and returning students, and uses storage-recovery view only for invalid or inaccessible data. My Learning remains a separate dashboard destination. The Home Continue Learning action opens the saved unfinished commitment paused. Setup remembers whether it was opened from Home or My Learning so Back returns to the originating view. Leaving Study Workspace for Home or My Learning checkpoints and interrupts the session without finishing or replacing the commitment.
 
-Implements `prd.md > Landing, first visit, and entry`, `prd.md > My Learning and commitment continuity`, and `prd.md > States and Boundaries`.
+Implements `prd.md > Home, saved-return, and entry`, `prd.md > My Learning and commitment continuity`, and `prd.md > States and Boundaries`.
 
 ### Editorial landing page
 
-Presents the approved problem narrative, resource-search cycle, four current capabilities, and CTA destinations. It contains no fake stats, testimonials, feature claims, or invented student progress. “See how it works” scrolls to the explanation; Start opens Setup.
+Presents the specific exam-season problem, unfinished-learning cycle, fair limitations of fragmented tools, actual focus-and-continuity workflow, four current capabilities, and contextual CTA destinations. It contains no fake stats, testimonials, feature claims, or invented student progress. “See how it works” scrolls to the explanation; Start opens Setup; Continue Learning opens the saved unfinished lesson paused; My Learning opens the separate dashboard.
 
-Implements `prd.md > Screens and Layout > Editorial landing page — first visit` and `prd.md > Landing, first visit, and entry`.
+Implements `prd.md > Screens and Layout > Home — editorial landing page` and `prd.md > Home, saved-return, and entry`.
 
 ### Focused Setup view
 
@@ -93,13 +93,13 @@ Implements `prd.md > Screens and Layout > Focused Setup view — first commitmen
 
 ### My Learning view
 
-Shows the single current commitment, objective, last confirmed position, cumulative recorded focused activity, chosen goal, time remaining, lesson status, Focus Cup, and the appropriate Continue Learning or Start another lesson action. A goal edit changes the target but not accumulated activity. No archive UI is rendered.
+Shows the single current commitment, objective, last confirmed position, cumulative recorded focused activity, chosen goal, time remaining, lesson status, Focus Cup, and the appropriate Continue Learning or Start another lesson action. It is opened only through the distinct My Learning navigation action; it is not the Home route. A goal edit changes the target but not accumulated activity. No archive UI is rendered.
 
-Implements `prd.md > Screens and Layout > My Learning — returning student home` and `prd.md > My Learning and commitment continuity`.
+Implements `prd.md > Screens and Layout > My Learning — saved commitment dashboard` and `prd.md > My Learning and commitment continuity`.
 
 ### Study workspace
 
-`StudyWorkspace` in `src/ui/App.tsx` keeps the standard YouTube player prominent, displays the objective and progress context, and provides sticky My Learning navigation, Play/Resume, Pause, Recheck focus, Finish session, and separately confirmed Mark Lesson Complete. Its playlist toggle shows YouTube's returned item count and actual ordered IDs; the current returned title is shown when available. Selecting a playlist item updates the same commitment and retains accumulated activity. The live timer updates at second-level precision; saved and session-only activity are labeled separately. The SVG/CSS Focus Cup uses the last confirmed persisted activity and current goal. It renders player/loading/autoplay/focus/storage/error/goal-reached states without obscuring YouTube controls.
+`StudyWorkspace` in `src/ui/App.tsx` keeps the standard YouTube player prominent, displays the objective and progress context, and provides a sticky Back to Home action plus the global My Learning navigation, Play/Resume, Pause, Recheck focus, Finish session, and separately confirmed Mark Lesson Complete. Leaving for Home or My Learning checkpoints and interrupts without finishing the commitment. Its playlist toggle shows YouTube's returned item count and actual ordered IDs; the current returned title is shown when available. Selecting a playlist item updates the same commitment and retains accumulated activity. The live timer updates at second-level precision; saved and session-only activity are labeled separately. The SVG/CSS Focus Cup uses the last confirmed persisted activity and current goal. It renders player/loading/autoplay/focus/storage/error/goal-reached states without obscuring YouTube controls.
 
 Implements `prd.md > Screens and Layout > Focused study workspace`, `prd.md > Focused study, activity, goal reached, and session finish`, and `prd.md > States and Boundaries`.
 
@@ -341,7 +341,7 @@ The build should work in narrow, verifiable slices. Each slice must type-check a
 - Finish session versus Mark Lesson Complete: Finish leaves status unfinished; goal reach, YouTube ENDED and timestamp do not complete; cancel completion leaves state intact; confirmed completion persists `completed` and retains all progress.
 - Focus Cup calculation test: 90 eligible minutes / 25-minute goal → 100% fill, 90 minutes shown, zero remaining, unfinished lesson unless explicitly completed; reduced-motion styling disables transitions.
 - Adapter lifecycle: one player per mount, one shared API script loader, callbacks ignored after dispose, player destroyed once, listeners/timers cleaned on unmount.
-- Playwright Chromium flows: first-use landing → setup → study; returning My Learning; goal changes; safe failed replacement; reload and paused restore; Finish versus Complete; keyboard-accessible controls and mobile-width layout. Use test data/fake player only in test fixtures; never show that data as real product progress.
+- Playwright Chromium flows: first-use and saved-return Home → Setup → Study; contextual Continue Learning; separate My Learning navigation; workspace return to Home; goal changes; safe failed replacement; reload and paused restore; Finish versus Complete; keyboard-accessible controls and mobile-width layout. Use test data/fake player only in test fixtures; never show that data as real product progress.
 
 ### Manual real-browser verification (required)
 
