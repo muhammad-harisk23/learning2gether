@@ -2,6 +2,7 @@ import type { CommitmentRecordV1 } from "../../domain/commitment";
 import { parseObjective } from "../../domain/commitment";
 import { parseGoalMinutes } from "../../domain/focusGoal";
 import { canonicalYouTubeUrl } from "../../domain/youtubeUrl";
+import { isFocusVesselStyle } from "../../domain/focusVessel";
 
 const VIDEO_ID = /^[A-Za-z0-9_-]{11}$/;
 
@@ -31,6 +32,7 @@ export function decodeCommitment(value: unknown): CommitmentRecordV1 | null {
     parseObjective(value.objective) !== value.objective ||
     typeof value.goalMinutes !== "number" ||
     !parseGoalMinutes(value.goalMinutes).ok ||
+    (value.vesselStyle !== undefined && !isFocusVesselStyle(value.vesselStyle)) ||
     typeof value.revision !== "number" ||
     !Number.isSafeInteger(value.revision) ||
     value.revision < 1 ||

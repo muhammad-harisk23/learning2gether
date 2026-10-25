@@ -19,7 +19,7 @@ export function parseGoalMinutes(input: string | number): GoalResult {
 export function goalProgress(recordedMs: number, goalMinutes: number) {
   const goalMs = goalMinutes * 60_000;
   return {
-    fill: Math.min(recordedMs / goalMs, 1),
+    fill: Math.min(Math.max(recordedMs / goalMs, 0), 1),
     remainingMs: Math.max(goalMs - recordedMs, 0),
   };
 }

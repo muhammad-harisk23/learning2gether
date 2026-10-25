@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent, type MouseEvent } from "react";
 import { newCommitment, parseObjective, type CommitmentRecordV1 } from "../domain/commitment";
 import { parseGoalMinutes } from "../domain/focusGoal";
+import { DEFAULT_FOCUS_VESSEL, type FocusVesselStyle } from "../domain/focusVessel";
 import { parseYouTubeUrl, type YouTubeLesson } from "../domain/youtubeUrl";
 import { CommitmentRepository, type LoadResult } from "../services/persistence/commitmentRepository";
 import { FocusController } from "../services/focus/focusController";
@@ -8,8 +9,8 @@ import { BrowserFocusSignalSource, type FocusState } from "../services/focus/foc
 import { PlayerAdapter, type CandidateResult, type CurrentVideo, type PlayerState } from "../services/youtube/playerAdapter";
 import { FocusCup, formatActivity } from "./FocusCup";
 
-type Page = "landing" | "setup" | "learning" | "study" | "recovery";
-type StudyExitDestination = "home" | "learning";
+type Page = "landing" | "setup" | "learning" | "study" | "privacy" | "recovery";
+type StudyExitDestination = "home" | "learning" | "privacy";
 type SetupValues = { url: string; objective: string; goal: string };
 type PendingLesson = { lesson: YouTubeLesson; objective: string; goalMinutes: number };
 const emptySetup: SetupValues = { url: "", objective: "", goal: "25" };
@@ -22,6 +23,7 @@ export function App() {
   const [page, setPage] = useState<Page>(loaded.status === "empty" || loaded.status === "valid" ? "landing" : "recovery");
   const setupOrigin = useRef<"landing" | "learning">("landing");
   const studyNavigation = useRef<((destination: StudyExitDestination) => void) | null>(null);
+  const pendingHomeSection = useRef<string | null>(null);
   const [setupValues, setSetupValues] = useState<SetupValues>(emptySetup);
   const [setupError, setSetupError] = useState("");
   const [pending, setPending] = useState<PendingLesson | null>(null);
@@ -34,6 +36,16 @@ export function App() {
   }), [repository]);
 
   useEffect(() => { recordRef.current = record; }, [record]);
+
+  useEffect(() => {
+    if (page === "landing" && pendingHomeSection.current) {
+      const section = pendingHomeSection.current;
+      pendingHomeSection.current = null;
+      const frame = window.requestAnimationFrame(() => document.getElementById(section)?.scrollIntoView({ behavior: "smooth", block: "start" }));
+      return () => window.cancelAnimationFrame(frame);
+    }
+    window.scrollTo({ top: 0 });
+  }, [page]);
 
   useEffect(() => {
     const current = recordRef.current;
@@ -99,26 +111,61 @@ export function App() {
     return result.status === "saved" ? { status: result.status, record: next } : { status: result.status };
   }
 
+  function navigateTo(destination: StudyExitDestination): void {
+    pendingHomeSection.current = null;
+    if (window.location.hash) window.history.replaceState(null, "", window.location.pathname);
+    if (page === "study") {
+      studyNavigation.current?.(destination);
+      return;
+    }
+    const nextPage = destination === "home" ? "landing" : destination;
+    if (nextPage === page) window.scrollTo({ top: 0 });
+    else setPage(nextPage);
+  }
+
+  function navigateToHomeSection(event: MouseEvent<HTMLAnchorElement>, section: string): void {
+    if (page === "landing") return;
+    event.preventDefault();
+    pendingHomeSection.current = section;
+    if (page === "study") studyNavigation.current?.("home");
+    else setPage("landing");
+  }
+
   return <div className={page === "study" ? "app-shell study-mode" : "app-shell"}>
-    <header className="site-header">
-      <button className="wordmark" onClick={() => page === "study" ? studyNavigation.current?.("home") : setPage("landing")} aria-label="K12Learn2Gether home">
-        <span className="wordmark-symbol" aria-hidden="true">K<span>✦</span></span>
-        <span>K12Learn2Gether</span>
-      </button>
-      <div className="header-right"><span className="header-tag">LESS SEARCHING. MORE FINISHING.</span>{record && <button className="text-button" onClick={() => page === "study" ? studyNavigation.current?.("learning") : setPage("learning")}>My Learning <span aria-hidden="true">↗</span></button>}</div>
-    </header>
+    <SiteNavigation page={page} onNavigate={navigateTo} onSectionNavigate={navigateToHomeSection} />
 
     {storageWarning && <div className="storage-warning" role="alert">{storageWarning}</div>}
 
     <main className={page === "study" ? "study-app-main" : undefined}>
-      {page === "landing" && <Landing record={record} onStart={() => goToSetup("landing")} onContinue={() => { setPending(null); setPage("study"); }} onMyLearning={() => setPage("learning")} />}
+      {page === "landing" && <Landing record={record} onStart={() => goToSetup("landing")} onContinue={() => { setPending(null); setPage("study"); }} onMyLearning={() => navigateTo("learning")} />}
       {page === "setup" && <Setup values={setupValues} onChange={setSetupValues} error={setupError} onError={setSetupError} replacing={!!record} onBack={() => setPage(setupOrigin.current)} onStart={startCandidate} />}
-      {page === "study" && <StudyWorkspace key={pending?.lesson.playlistId ?? pending?.lesson.videoId ?? record?.lesson.playlistId ?? record?.lesson.videoId ?? "none"} candidate={pending} record={record} storageWarning={storageWarning} navigationRef={studyNavigation} onUpdate={onUpdate} onCandidateAccepted={onCandidateAccepted} onCandidateError={(message) => { setSetupError(message); setPending(null); setPage("setup"); }} onExit={(destination) => { setPending(null); setPage(destination === "home" ? "landing" : "learning"); }} />}
-      {page === "learning" && record && <LearningHome record={record} onContinue={() => { setPending(null); setPage("study"); }} onStartAnother={() => goToSetup("learning")} />}
+      {page === "study" && <StudyWorkspace key={pending?.lesson.playlistId ?? pending?.lesson.videoId ?? record?.lesson.playlistId ?? record?.lesson.videoId ?? "none"} candidate={pending} record={record} storageWarning={storageWarning} navigationRef={studyNavigation} onUpdate={onUpdate} onCandidateAccepted={onCandidateAccepted} onCandidateError={(message) => { setSetupError(message); setPending(null); setPage("setup"); }} onExit={(destination) => { setPending(null); setPage(destination === "home" ? "landing" : destination); }} />}
+      {page === "learning" && record && <LearningHome record={record} onContinue={() => { setPending(null); setPage("study"); }} onStartAnother={() => goToSetup("learning")} onUpdate={onUpdate} />}
+      {page === "learning" && !record && <EmptyLearning onStart={() => goToSetup("learning")} />}
+      {page === "privacy" && <PrivacyDataPage origin={window.location.origin} />}
       {page === "recovery" && <section className="recovery section-pad"><p className="eyebrow">LOCAL SAVE NEEDS ATTENTION</p><h1>We couldn’t safely read your saved lesson.</h1><p>Your browser’s saved data may be unavailable or in a format this version cannot read. This page will not overwrite it. Check that site storage is available, then reload. If you changed the host or port, return to the original address.</p><button className="button button-ink" onClick={() => window.location.reload()}>Retry loading</button></section>}
     </main>
     {page !== "study" && <footer className="site-footer"><span>K12Learn2Gether</span><span>One lesson. One goal. Your pace.</span></footer>}
   </div>;
+}
+
+function SiteNavigation({ page, onNavigate, onSectionNavigate }: {
+  page: Page;
+  onNavigate: (destination: StudyExitDestination) => void;
+  onSectionNavigate: (event: MouseEvent<HTMLAnchorElement>, section: string) => void;
+}) {
+  return <header className="site-header">
+    <a className="wordmark" href="/" onClick={(event) => { event.preventDefault(); onNavigate("home"); }} aria-label="K12Learn2Gether home">
+      <span className="wordmark-symbol" aria-hidden="true">K<span>✦</span></span><span>K12Learn2Gether</span>
+    </a>
+    <nav className="primary-nav" aria-label="Primary navigation">
+      <a href="/" aria-current={page === "landing" ? "page" : undefined} onClick={(event) => { event.preventDefault(); onNavigate("home"); }}>Home</a>
+      <a href="#problem" onClick={(event) => onSectionNavigate(event, "problem")}>The problem</a>
+      <a href="#how-it-works" onClick={(event) => onSectionNavigate(event, "how-it-works")}>How it works</a>
+      <a href="#my-learning" aria-current={page === "learning" ? "page" : undefined} onClick={(event) => { event.preventDefault(); onNavigate("learning"); }}>My Learning</a>
+      <a href="#privacy-data" aria-current={page === "privacy" ? "page" : undefined} onClick={(event) => { event.preventDefault(); onNavigate("privacy"); }}>Privacy &amp; Data</a>
+    </nav>
+  </header>;
 }
 
 const learningCycle = [
@@ -133,15 +180,47 @@ const learningCycle = [
 function Landing({ record, onStart, onContinue, onMyLearning }: { record: CommitmentRecordV1 | null; onStart: () => void; onContinue: () => void; onMyLearning: () => void }) {
   return <>
     <section className="hero section-pad">
-      <div className="hero-copy"><p className="eyebrow"><span className="eyebrow-dot" /> THE STUDY SPACE FOR FINISHING</p><h1>You don't have a shortage of lessons. You have a shortage of <em>finished learning.</em></h1><p className="hero-lede">Exams may be getting closer. There are excellent free teachers, and you want to learn. But comparing teachers, saving playlists, and restarting a plan can take the time meant for studying. That is a workflow problem, not laziness.</p><div className="hero-actions"><button className="button button-ink" onClick={onStart}>Start with one lesson <span aria-hidden="true">↗</span></button>{record?.lessonStatus === "unfinished" && <button className="button button-lime" onClick={onContinue}>Continue Learning <span aria-hidden="true">↗</span></button>}{record?.lessonStatus === "completed" && <button className="button button-lime" onClick={onMyLearning}>My Learning <span aria-hidden="true">↗</span></button>}<a className="text-link" href="#how-it-works">See how it works <span aria-hidden="true">↓</span></a></div></div>
-      <div className="hero-art" aria-hidden="true"><div className="art-note art-note-top">ONE GOOD<br />LESSON</div><div className="art-orbit"><div className="art-orbit-inner"><span className="art-play">▶</span></div></div><div className="art-note art-note-bottom">A CLEAR<br />NEXT STEP <span>↗</span></div><div className="art-spark">✳</div><div className="art-caption">A LITTLE LESS SCROLLING.<br />A LOT MORE STARTING.</div></div>
+      <div className="hero-copy"><p className="eyebrow"><span className="eyebrow-dot" /> THE STUDY SPACE FOR FINISHING</p><h1>You found a good lesson. Then <em>the distractions started.</em></h1><p className="hero-lede">K12Learn2Gether helps students stay with the teacher and lesson they chose, track eligible focused playback, and return to the same learning thread instead of repeatedly starting over.</p><div className="hero-actions"><button className="button button-ink" onClick={onStart}>Start with one lesson <span aria-hidden="true">↗</span></button>{record?.lessonStatus === "unfinished" && <button className="button button-lime" onClick={onContinue}>Continue Learning <span aria-hidden="true">↗</span></button>}{record?.lessonStatus === "completed" && <button className="button button-lime" onClick={onMyLearning}>My Learning <span aria-hidden="true">↗</span></button>}<a className="text-link" href="#problem">See the problem <span aria-hidden="true">↓</span></a></div></div>
+      <LearningJourneyIllustration />
       <div className="hero-index">01 / THE PROBLEM</div>
     </section>
-    <section id="how-it-works" className="story section-pad"><div className="story-intro"><p className="eyebrow">THE LOOP THAT STEALS STUDY TIME</p><h2>Trying to find the perfect resource can quietly replace learning.</h2></div><ol className="cycle" aria-label="A common unfinished-learning cycle">{learningCycle.map(([title, detail], i) => <li className="cycle-step" key={title}><span className="cycle-index">0{i + 1}</span><strong>{title}</strong><p>{detail}</p></li>)}</ol><div className="story-aside">Some students recognize this loop. It is not laziness; it is a hard workflow to escape.</div></section>
+    <section id="problem" className="story section-pad"><div className="story-intro"><p className="eyebrow">THE LOOP THAT STEALS STUDY TIME</p><h2>Trying to find the perfect resource can quietly replace learning.</h2></div><ol className="cycle" aria-label="A common unfinished-learning cycle">{learningCycle.map(([title, detail], i) => <li className="cycle-step" key={title}><span className="cycle-index">0{i + 1}</span><strong>{title}</strong><p>{detail}</p></li>)}</ol><div className="story-aside">Some students recognize this loop. It is not laziness; it is a hard workflow to escape.</div></section>
     <section className="manifesto section-pad"><p className="eyebrow">WHY CONTINUITY IS HARD</p><h2>Good tools help. <em>Each one still leaves a gap.</em></h2><ul className="tool-gaps"><li><strong>YouTube</strong><span>Has excellent lessons and also discovery paths that can pull attention away from the one chosen.</span></li><li><strong>Playlists</strong><span>Organize videos, but do not create a personal commitment or focused-study workflow.</span></li><li><strong>Generic timers</strong><span>Count elapsed time without knowing whether the lesson is playing or the page is hidden.</span></li><li><strong>Blockers</strong><span>Can restrict access without keeping lesson, goal, and saved progress together.</span></li><li><strong>Separate notes and trackers</strong><span>Can add context switching between the lesson, timer, playlist, and progress record.</span></li></ul><p>These tools can still help; this app focuses on the continuity between choosing one lesson and returning to it.</p></section>
-    <section className="features section-pad"><div><p className="eyebrow">A SMALLER, STRONGER START</p><h2>Bring what you already want to learn. <em>We help you actually finish it.</em></h2><p className="workflow-intro">Keep the teacher and lesson you trust. Choose one next step and make a little room to focus.</p><ol className="workflow-list"><li>Choose a trusted YouTube lesson or playlist.</li><li>Write what you want to understand and set a personal focus-time goal.</li><li>Study with YouTube's standard player controls.</li><li>Activity records only when observed playback and browser focus signals meet the eligibility rules.</li><li>When the page becomes hidden, the app requests a pause where supported and stops crediting time. Browser signals cannot prove attention or guarantee a pause in every case.</li><li>Return to the saved lesson and position; choose when to resume.</li><li>See recorded focused activity in your private Focus Cup. It reflects time, not understanding or exam results.</li></ol><button className="button button-lime" onClick={onStart}>Start with one lesson <span aria-hidden="true">↗</span></button></div><div className="feature-grid"><article><span>01 / COMMIT</span><h3>One lesson. One goal.</h3><p>Paste a YouTube lesson and name what you want to understand.</p></article><article><span>02 / FOCUS</span><h3>Make the time count.</h3><p>Record activity only while playback and browser focus can be confirmed.</p></article><article><span>03 / RETURN</span><h3>Pick up your thread.</h3><p>Continue from your saved lesson and playback position in this browser.</p></article><article><span>04 / SEE IT</span><h3>A cup that tells the truth.</h3><p>Your Focus Cup reflects recorded activity toward your own time goal.</p></article></div></section>
+    <section id="how-it-works" className="features section-pad"><div><p className="eyebrow">A SMALLER, STRONGER START</p><h2>Bring what you already want to learn. <em>We help you actually finish it.</em></h2><p className="workflow-intro">Keep the teacher and lesson you trust. Choose one next step and make a little room to focus.</p><ol className="workflow-list"><li>Choose a trusted YouTube lesson or playlist.</li><li>Write what you want to understand and set a personal focus-time goal.</li><li>Study with YouTube's standard player controls.</li><li>Activity records only when observed playback and browser focus signals meet the eligibility rules.</li><li>When the page becomes hidden, the app requests a pause where supported and stops crediting time. Browser signals cannot prove attention or guarantee a pause in every case.</li><li>Return to the saved lesson and position; choose when to resume.</li><li>See recorded focused activity in your private Focus Cup. It reflects time, not understanding or exam results.</li></ol><button className="button button-lime" onClick={onStart}>Start with one lesson <span aria-hidden="true">↗</span></button></div><div className="feature-grid"><article><span>01 / COMMIT</span><h3>One lesson. One goal.</h3><p>Paste a YouTube lesson and name what you want to understand.</p></article><article><span>02 / FOCUS</span><h3>Make the time count.</h3><p>Record activity only while playback and browser focus can be confirmed.</p></article><article><span>03 / RETURN</span><h3>Pick up your thread.</h3><p>Continue from your saved lesson and playback position in this browser.</p></article><article><span>04 / SEE IT</span><h3>A cup that tells the truth.</h3><p>Your Focus Cup reflects recorded activity toward your own time goal.</p></article></div></section>
     <section className="closing-cta section-pad"><p className="eyebrow">READY WHEN YOU ARE</p><h2>Less searching.<br /><em>More finishing.</em></h2><button className="button button-ink" onClick={onStart}>Start with one lesson <span aria-hidden="true">↗</span></button></section>
   </>;
+}
+
+function LearningJourneyIllustration() {
+  return <figure className="hero-art" aria-labelledby="journey-illustration-description">
+    <figcaption id="journey-illustration-description" className="visually-hidden">Illustration: a student searches for a lesson, chooses Current Electricity, encounters competing recommendation cards, then reaches a focused workspace with a personal goal, eligible playback tracking, a saved browser position, and a Focus Cup for recorded activity.</figcaption>
+    <div className="journey-stage" aria-hidden="true">
+      <div className="journey-search"><span className="journey-label">ILLUSTRATIVE SEARCH · NOT LIVE</span><div className="search-field"><span aria-hidden="true">⌕</span> Class 10 Physics — Current Electricity</div></div>
+      <div className="journey-choices"><span className="journey-label">LESSON OPTIONS · EXAMPLES</span><div className="lesson-choice"><span className="choice-number">01</span><span>Current Electricity<br /><small>Concept lesson</small></span><span className="choice-mark">↗</span></div><div className="lesson-choice selected"><span className="choice-number">02</span><span>Current Electricity<br /><small>Worked examples</small></span><span className="choice-mark">✓</span></div><div className="lesson-choice"><span className="choice-number">03</span><span>Electric circuits<br /><small>Practice lesson</small></span><span className="choice-mark">↗</span></div></div>
+      <div className="journey-distractions"><span className="distraction-card distraction-one">Another recommendation</span><span className="distraction-card distraction-two">A Shorts-like detour</span><span className="distraction-card distraction-three">A different roadmap</span><span className="broken-path" aria-hidden="true">······→</span></div>
+      <div className="journey-workspace"><div className="workspace-topline"><span className="workspace-dot" /> ONE COMMITMENT</div><strong>Current Electricity</strong><div className="workspace-details"><span>Personal focus goal</span><b>Chosen by the student</b></div><div className="workspace-details"><span>Playback tracking</span><b>Only when eligible</b></div><div className="workspace-details"><span>Saved position</span><b>In this browser</b></div><div className="workspace-cup" aria-hidden="true"><svg viewBox="0 0 36 48"><path d="M5 4h22l-2 34H9L5 4Z" fill="#faf9f5" stroke="#171813" strokeWidth="2"/><path d="M26 11h5a5 5 0 0 1 0 10h-6" fill="none" stroke="#171813" strokeWidth="2"/><path d="m9 39 2 5h14l2-5" fill="#d9f525" stroke="#171813" strokeWidth="2"/></svg><span>FOCUS CUP<br />RECORDED TIME</span></div></div>
+    </div>
+    <p className="hero-art-caption">ILLUSTRATIVE FLOW · NO SEARCH OR ACTIVITY IS LIVE</p>
+  </figure>;
+}
+
+function EmptyLearning({ onStart }: { onStart: () => void }) {
+  return <section id="my-learning" className="learning-page section-pad empty-learning"><p className="eyebrow">YOUR STUDY SPACE</p><h1>My <em>Learning.</em></h1><p>No lesson is saved in this browser yet. Choose one you trust, and it will appear here after YouTube confirms it loaded.</p><button className="button button-ink" onClick={onStart}>Start with one lesson <span aria-hidden="true">↗</span></button></section>;
+}
+
+function PrivacyDataPage({ origin }: { origin: string }) {
+  return <section id="privacy-data" className="privacy-page section-pad">
+    <p className="eyebrow">YOUR DATA, PLAINLY EXPLAINED</p><h1>Privacy <em>&amp; Data.</em></h1>
+    <p className="privacy-lede">This proof of concept keeps one learning commitment in your browser. It has no account or app server for syncing your progress.</p>
+    <div className="privacy-list">
+      <article><h2>What this browser stores</h2><p>The saved record can include your YouTube video and playlist IDs, the current playlist item and title when YouTube provides it, the lesson link, your learning objective, focus-time goal, chosen Focus Cup vessel, last confirmed playback position, recorded focused activity, unfinished/completed and session status, and record timestamps/revision.</p><p>The record uses browser local storage under <code>k12learn2gether.commitment</code> for <code>{origin}</code>.</p></article>
+      <article><h2>Where it stays</h2><p>Local storage belongs to this browser profile and exact site origin. A different browser profile, device, hostname, or port has a separate store; this app does not sync the commitment between them. Anyone with access to this browser profile may be able to view this saved information.</p></article>
+      <article><h2>When you use YouTube</h2><p>Starting a lesson loads the YouTube IFrame API and an embedded YouTube player. YouTube/Google may receive requests and handle data under their own services and policies. This app does not control the embedded player's separate network behavior.</p></article>
+      <article><h2>Other app connections</h2><p>The current application code has no app backend, account system, analytics integration, or separate external search service. The verified third-party integration is YouTube's IFrame API and embedded player. Your browser and the site host still handle the requests needed to load this app.</p></article>
+      <article><h2>Clear this browser's saved progress</h2><p>Use your browser's site-data controls to remove stored data for this exact address: <code>{origin}</code>. Browser menu names vary. Clearing site data can remove the saved lesson and its progress; there is no in-app delete control in this proof of concept.</p></article>
+    </div>
+    <p className="privacy-note">This page describes the current proof of concept, not a formal legal privacy policy. Legal review is needed before public commercial use.</p>
+  </section>;
 }
 
 function Setup({ values, onChange, error, onError, replacing, onBack, onStart }: { values: SetupValues; onChange: (value: SetupValues) => void; error: string; onError: (value: string) => void; replacing: boolean; onBack: () => void; onStart: (value: PendingLesson) => void }) {
@@ -170,8 +249,17 @@ function Setup({ values, onChange, error, onError, replacing, onBack, onStart }:
       <button className="button button-ink setup-submit" type="submit">Start focused study <span aria-hidden="true">↗</span></button><p className="storage-note">Your lesson and activity stay in this browser profile. There’s no account or cloud backup; clearing site data may remove them.</p></form></section>;
 }
 
-function LearningHome({ record, onContinue, onStartAnother }: { record: CommitmentRecordV1; onContinue: () => void; onStartAnother: () => void }) {
-  return <section className="learning-page section-pad"><p className="eyebrow">YOUR STUDY SPACE</p><h1>My <em>Learning.</em></h1><div className="learning-grid"><div className="learning-card"><span className="pill">{record.lessonStatus === "completed" ? "COMPLETED" : "UNFINISHED"}</span><h2>{record.objective}</h2><p className="lesson-url">{record.lesson.title ?? record.lesson.canonicalUrl}</p><dl><div><dt>Focus-time goal</dt><dd>{record.goalMinutes} min</dd></div><div><dt>Recorded activity</dt><dd>{formatActivity(record.cumulativeRecordedFocusedMs)}</dd></div><div><dt>Saved position</dt><dd>{formatTime(record.lastConfirmedPositionMs)}</dd></div></dl><FocusCup recordedMs={record.cumulativeRecordedFocusedMs} goalMinutes={record.goalMinutes} compact />{record.lessonStatus === "unfinished" && <button className="button button-ink" onClick={onContinue}>Continue Learning <span aria-hidden="true">↗</span></button>}{record.lessonStatus === "completed" && <button className="button button-ink" onClick={onStartAnother}>Start another lesson <span aria-hidden="true">↗</span></button>}<button className="text-button under-card" onClick={onStartAnother}>{record.lessonStatus === "completed" ? "Choose another lesson" : "Replace this lesson"} ↗</button></div><aside className="learning-aside"><span className="aside-mark">✳</span><p>Progress is saved in this browser. Continuing opens the lesson paused, so you decide when to begin again.</p><small>Last confirmed save: {new Date(record.updatedAt).toLocaleString()}</small></aside></div></section>;
+function LearningHome({ record, onContinue, onStartAnother, onUpdate }: { record: CommitmentRecordV1; onContinue: () => void; onStartAnother: () => void; onUpdate: (patch: CommitmentPatch) => SaveResult }) {
+  const [vesselError, setVesselError] = useState("");
+  function updateVessel(style: FocusVesselStyle) {
+    const result = onUpdate({ vesselStyle: style });
+    setVesselError(result.status === "saved" ? "" : result.status === "unverified"
+      ? "Your vessel choice could not be verified as saved. Reload My Learning before changing it again."
+      : result.status === "stale"
+        ? "This lesson changed in another tab. Reload My Learning before changing its vessel."
+        : "Your vessel choice was not saved. The previous saved choice is still shown.");
+  }
+  return <section id="my-learning" className="learning-page section-pad"><p className="eyebrow">YOUR STUDY SPACE</p><h1>My <em>Learning.</em></h1><div className="learning-grid"><div className="learning-card"><span className="pill">{record.lessonStatus === "completed" ? "COMPLETED" : "UNFINISHED"}</span><h2>{record.objective}</h2><p className="lesson-url">{record.lesson.title ?? record.lesson.canonicalUrl}</p><dl><div><dt>Focus-time goal</dt><dd>{record.goalMinutes} min</dd></div><div><dt>Recorded activity</dt><dd>{formatActivity(record.cumulativeRecordedFocusedMs)}</dd></div><div><dt>Saved position</dt><dd>{formatTime(record.lastConfirmedPositionMs)}</dd></div></dl><FocusCup recordedMs={record.cumulativeRecordedFocusedMs} goalMinutes={record.goalMinutes} compact vesselStyle={record.vesselStyle ?? DEFAULT_FOCUS_VESSEL} onVesselStyleChange={updateVessel}/>{vesselError && <p role="alert" className="form-error">{vesselError}</p>}{record.lessonStatus === "unfinished" && <button className="button button-ink" onClick={onContinue}>Continue Learning <span aria-hidden="true">↗</span></button>}{record.lessonStatus === "completed" && <button className="button button-ink" onClick={onStartAnother}>Start another lesson <span aria-hidden="true">↗</span></button>}<button className="text-button under-card" onClick={onStartAnother}>{record.lessonStatus === "completed" ? "Choose another lesson" : "Replace this lesson"} ↗</button></div><aside className="learning-aside"><span className="aside-mark">✳</span><p>Progress is saved in this browser. Continuing opens the lesson paused, so you decide when to begin again.</p><small>Last confirmed save: {new Date(record.updatedAt).toLocaleString()}</small></aside></div></section>;
 }
 
 type SaveResult = { status: "saved"; record: CommitmentRecordV1 } | { status: "not-saved" | "unverified" | "stale" };
@@ -448,7 +536,7 @@ function StudyWorkspace({ candidate, record, storageWarning, navigationRef, onUp
         </div>
       </div>
       <aside className="study-side"><p className="eyebrow">TODAY’S COMMITMENT</p><h2>{candidate?.objective ?? record?.objective}</h2><div className="side-line"><span>Player</span><strong>{state}</strong></div><div className="timer-box"><span>RECORDED ACTIVITY · LIVE</span><strong aria-live="off">{formatActivity(totalMs)}</strong><small>{formatActivity(localRecord.current?.cumulativeRecordedFocusedMs ?? 0)} saved · {formatActivity(unsavedMs)} in this session, not yet saved</small><p>{statusText}</p></div>
-        {localRecord.current && <><FocusCup recordedMs={localRecord.current.cumulativeRecordedFocusedMs} goalMinutes={localRecord.current.goalMinutes} compact /><div className="side-line"><span>Focus-time goal</span><strong>{localRecord.current.goalMinutes} min {goalReached ? "· reached" : ""}</strong></div><div className="goal-editor"><label htmlFor="study-goal">Change goal (5–240 min)</label><div><input id="study-goal" type="number" min={5} max={240} step={1} value={goalInput} onChange={(event) => setGoalInput(event.target.value)} /><button className="text-button" disabled={persistenceBlocked.current} onClick={updateGoal}>Save goal</button></div></div></>}
+        {localRecord.current && <><FocusCup recordedMs={localRecord.current.cumulativeRecordedFocusedMs} goalMinutes={localRecord.current.goalMinutes} compact vesselStyle={localRecord.current.vesselStyle ?? DEFAULT_FOCUS_VESSEL} onVesselStyleChange={(style) => { savePatch({ vesselStyle: style }); }} /><div className="side-line"><span>Focus-time goal</span><strong>{localRecord.current.goalMinutes} min {goalReached ? "· reached" : ""}</strong></div><div className="goal-editor"><label htmlFor="study-goal">Change goal (5–240 min)</label><div><input id="study-goal" type="number" min={5} max={240} step={1} value={goalInput} onChange={(event) => setGoalInput(event.target.value)} /><button className="text-button" disabled={persistenceBlocked.current} onClick={updateGoal}>Save goal</button></div></div></>}
         <div className="save-state" role="status">{saveState === "saved" ? `Saved · revision ${localRecord.current?.revision ?? "—"}` : saveState === "saving" ? "Saving activity…" : saveState === "not-saved" ? "Not saved; activity is in memory" : saveState === "stale" ? "Another tab has newer progress" : "Saved state is unverified"}</div>
         {localRecord.current && <details className="session-actions"><summary>Session actions</summary><div><button className="button button-outline full-width" disabled={persistenceBlocked.current} onClick={finishSession}>Finish session</button>{localRecord.current.lessonStatus !== "completed" && <button className="button button-outline full-width" disabled={persistenceBlocked.current} onClick={markComplete}>Mark lesson complete…</button>}</div></details>}
       </aside></div>

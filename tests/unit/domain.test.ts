@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { parseGoalMinutes, goalProgress } from "../../src/domain/focusGoal";
 import { parseObjective } from "../../src/domain/commitment";
+import { focusGoalWasReached } from "../../src/domain/focusVessel";
 import { parseYouTubeUrl } from "../../src/domain/youtubeUrl";
 import { formatActivity } from "../../src/ui/FocusCup";
 
@@ -65,5 +66,15 @@ describe("commitment input rules", () => {
     expect(goalProgress(recordedMs, 25).fill).toBe(0.6);
     expect(goalProgress(recordedMs, 15).fill).toBe(1);
     expect(recordedMs).toBe(15 * 60_000);
+  });
+  it("clamps Focus Cup fill and only celebrates a recorded-time crossing of the same goal", () => {
+    expect(goalProgress(0, 25).fill).toBe(0);
+    expect(goalProgress(12.5 * 60_000, 25).fill).toBe(0.5);
+    expect(goalProgress(25 * 60_000, 25).fill).toBe(1);
+    expect(goalProgress(50 * 60_000, 25).fill).toBe(1);
+    expect(focusGoalWasReached({ recordedMs: 24 * 60_000, goalMinutes: 25 }, { recordedMs: 25 * 60_000, goalMinutes: 25 })).toBe(true);
+    expect(focusGoalWasReached({ recordedMs: 24 * 60_000, goalMinutes: 25 }, { recordedMs: 25 * 60_000, goalMinutes: 20 })).toBe(false);
+    expect(focusGoalWasReached({ recordedMs: 25 * 60_000, goalMinutes: 25 }, { recordedMs: 26 * 60_000, goalMinutes: 25 })).toBe(false);
+    expect(focusGoalWasReached({ recordedMs: 24 * 60_000, goalMinutes: 25 }, { recordedMs: 23 * 60_000, goalMinutes: 25 })).toBe(false);
   });
 });

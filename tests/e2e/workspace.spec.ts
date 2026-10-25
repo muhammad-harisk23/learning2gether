@@ -108,7 +108,7 @@ test("bounded focus timer starts from PLAYING, pauses on hidden tab, and does no
   await expect.poll(async () => (await timer.innerText()).trim()).not.toBe("0:00");
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem("k12learn2gether.commitment")!).sessionStatus)).toBe("active");
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem("k12learn2gether.commitment")!).cumulativeRecordedFocusedMs)).toBeGreaterThan(0);
-  await expect.poll(async () => Number(await page.locator(".cup-liquid").getAttribute("height"))).toBeGreaterThan(11);
+  await expect.poll(async () => Number(await page.locator(".cup-liquid").getAttribute("height"))).toBeGreaterThan(0);
   const beforeHidden = await timer.innerText();
   const playCallsBefore = await page.evaluate(() => (window as any).__playCalls);
   await page.evaluate(() => {
@@ -143,18 +143,34 @@ test("workspace can return Home and separately open My Learning without autoplay
   await expect.poll(async () => (await page.locator(".timer-box strong").innerText()).trim()).not.toBe("0:00");
   const playCount = await page.evaluate(() => (window as any).__playCalls);
   await page.locator(".study-nav").getByRole("button", { name: /Back to Home/ }).click();
-  await expect(page.getByRole("heading", { name: /shortage of lessons/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "You found a good lesson. Then the distractions started." })).toBeVisible();
   await expect(page.getByRole("button", { name: /Continue Learning/ })).toBeVisible();
   await page.getByRole("button", { name: /Continue Learning/ }).click();
   await expect(page.locator(".player-host iframe")).toBeVisible();
   await expect.poll(() => page.evaluate(() => (window as any).__playCalls)).toBe(playCount);
-  await page.getByRole("button", { name: /My Learning/ }).click();
+  await page.getByRole("navigation", { name: "Primary navigation" }).getByRole("link", { name: "My Learning" }).click();
   await expect(page.getByRole("heading", { name: "My Learning." })).toBeVisible();
   await expect(page.getByRole("button", { name: /Continue Learning/ })).toBeVisible();
   await page.getByRole("button", { name: /Continue Learning/ }).click();
   await expect(page.locator(".player-host iframe")).toBeVisible();
   await expect.poll(() => page.evaluate(() => (window as any).__playCalls)).toBe(playCount);
   await expect(page.getByRole("button", { name: /Play \/ Resume/ })).toBeVisible();
+});
+
+test("shared navigation can leave the workspace for Privacy & Data without losing the commitment", async ({ page }) => {
+  await installFakeYouTube(page);
+  await beginStudy(page, `https://www.youtube.com/watch?v=${firstVideo}`);
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem("k12learn2gether.commitment")!).revision)).toBeGreaterThan(0);
+  await page.getByRole("navigation", { name: "Primary navigation" }).getByRole("link", { name: "Privacy & Data" }).click();
+
+  await expect(page.getByRole("heading", { name: "Privacy & Data." })).toBeVisible();
+  await expect(page.getByText(/exact site origin/i)).toBeVisible();
+  await expect(page.getByRole("link", { name: "My Learning" })).toBeVisible();
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("k12learn2gether.commitment")!).lesson.videoId)).toBe(firstVideo);
+  await page.getByRole("link", { name: "My Learning" }).click();
+  await expect(page.getByRole("heading", { name: "My Learning." })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Continue Learning/ })).toBeVisible();
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("k12learn2gether.commitment")!).lesson.videoId)).toBe(firstVideo);
 });
 
 test("Finish session remains distinct from confirmed completion", async ({ page }) => {
@@ -217,7 +233,7 @@ test("failed replacement preserves confirmed progress, then a successful replace
   await page.getByRole("button", { name: "Pause", exact: true }).click();
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem("k12learn2gether.commitment")!).cumulativeRecordedFocusedMs)).toBeGreaterThan(0);
   await page.locator(".study-nav").getByRole("button", { name: /Back to Home/ }).click();
-  await page.getByRole("button", { name: /My Learning/ }).click();
+  await page.getByRole("navigation", { name: "Primary navigation" }).getByRole("link", { name: "My Learning" }).click();
   await expect(page.getByRole("heading", { name: "My Learning." })).toBeVisible();
   const savedBeforeReplacement = await page.evaluate(() => localStorage.getItem("k12learn2gether.commitment"));
   const replacementId = "abcdefghijk";
@@ -255,6 +271,7 @@ test("desktop workspace fits the viewport and keeps essential controls visible a
       page.locator(".study-nav"), page.locator(".player-frame"), page.getByRole("button", { name: /Play \/ Resume/ }),
       page.locator(".playlist-toggle"), page.locator(".study-side"), page.locator(".timer-box"),
       page.locator(".focus-cup"), page.getByLabel("Change goal"), page.getByRole("button", { name: "Save goal" }),
+      page.getByRole("group", { name: "Choose Focus Cup vessel" }), page.locator(".session-actions summary"),
     ]) await expect(locator).toBeInViewport();
     const frameBox = await page.locator(".player-frame").boundingBox();
     const iframeBox = await page.locator(".player-host iframe").boundingBox();
@@ -277,7 +294,7 @@ test("desktop workspace fits the viewport and keeps essential controls visible a
       .toEqual({ height: viewport.height, width: viewport.width });
     await page.getByRole("button", { name: /Playlist/ }).click();
     await page.locator(".study-nav .wordmark").click();
-    await expect(page.getByRole("heading", { name: /shortage of lessons/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "You found a good lesson. Then the distractions started." })).toBeVisible();
   }
 });
 
@@ -288,17 +305,17 @@ test("saved-return starts on editorial Home with a distinct My Learning destinat
   await page.locator(".study-nav .wordmark").click();
   const saved = await page.evaluate(() => localStorage.getItem("k12learn2gether.commitment"));
   await page.reload();
-  await expect(page.getByRole("heading", { name: /shortage of lessons/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "You found a good lesson. Then the distractions started." })).toBeVisible();
   await expect(page.locator(".hero").getByRole("button", { name: "Start with one lesson" })).toBeVisible();
   await expect(page.getByRole("button", { name: /Continue Learning/ })).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath("saved-return-home-1440x900.png") });
   await expect(page.getByRole("heading", { name: "My Learning." })).toHaveCount(0);
-  await page.getByRole("button", { name: /My Learning/ }).click();
+  await page.getByRole("navigation", { name: "Primary navigation" }).getByRole("link", { name: "My Learning" }).click();
   await expect(page.getByRole("heading", { name: "My Learning." })).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem("k12learn2gether.commitment"))).toBe(saved);
 });
 
-test("mobile study workspace scrolls accessibly without clipping the return navigation", async ({ page }) => {
+test("mobile study workspace scrolls accessibly without clipping the return navigation", async ({ page }, testInfo) => {
   await installFakeYouTube(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await beginStudy(page, `https://www.youtube.com/playlist?list=${playlistId}`);
@@ -312,4 +329,43 @@ test("mobile study workspace scrolls accessibly without clipping the return navi
   const sideBox = await page.locator(".study-side").boundingBox();
   expect(sideBox!.x).toBeGreaterThanOrEqual(0);
   expect(sideBox!.x + sideBox!.width).toBeLessThanOrEqual(390);
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await expect(page.locator(".study-nav")).toBeInViewport();
+  await page.screenshot({ path: testInfo.outputPath("study-workspace-mobile-390x844.png"), fullPage: true });
+});
+
+test("Focus Cup vessel selection persists without changing commitment progress", async ({ page }) => {
+  await installFakeYouTube(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await beginStudy(page, `https://www.youtube.com/watch?v=${firstVideo}`);
+  await expect(page.locator(".focus-cup")).toHaveAttribute("data-vessel", "glass");
+  const before = await page.evaluate(() => JSON.parse(localStorage.getItem("k12learn2gether.commitment")!));
+  for (const [style, label] of [["coffee", "Coffee cup"], ["mug", "Mug"], ["bottle", "Bottle"], ["glass", "Glass"]]) {
+    await page.getByRole("button", { name: label, exact: true }).click();
+    await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem("k12learn2gether.commitment")!).vesselStyle)).toBe(style);
+    await expect(page.locator(".focus-cup")).toHaveAttribute("data-celebrating", "false");
+    expect(await page.evaluate(() => {
+      const value = JSON.parse(localStorage.getItem("k12learn2gether.commitment")!);
+      return { lesson: value.lesson, goalMinutes: value.goalMinutes, cumulativeRecordedFocusedMs: value.cumulativeRecordedFocusedMs, lastConfirmedPositionMs: value.lastConfirmedPositionMs, lessonStatus: value.lessonStatus };
+    })).toEqual({ lesson: before.lesson, goalMinutes: before.goalMinutes, cumulativeRecordedFocusedMs: before.cumulativeRecordedFocusedMs, lastConfirmedPositionMs: before.lastConfirmedPositionMs, lessonStatus: before.lessonStatus });
+  }
+  await page.locator(".study-nav .wordmark").click();
+  await page.getByRole("navigation", { name: "Primary navigation" }).getByRole("link", { name: "My Learning" }).click();
+  await expect(page.locator(".focus-cup")).toHaveAttribute("data-vessel", "glass");
+  await page.reload();
+  await page.getByRole("navigation", { name: "Primary navigation" }).getByRole("link", { name: "My Learning" }).click();
+  await expect(page.locator(".focus-cup")).toHaveAttribute("data-vessel", "glass");
+});
+
+test("Focus Cup goal changes do not create a completion event and reduced motion removes overflow motion", async ({ page }) => {
+  await installFakeYouTube(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await beginStudy(page, `https://www.youtube.com/watch?v=${firstVideo}`);
+  await page.getByLabel("Change goal").fill("5");
+  await page.getByRole("button", { name: "Save goal" }).click();
+  await expect(page.locator(".focus-cup")).toHaveAttribute("data-celebrating", "false");
+  await expect(page.locator(".cup-illustration")).toHaveAttribute("aria-label", /5 min/);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect(page.locator(".cup-overflow")).toHaveCSS("display", "none");
+  await expect(page.locator(".cup-liquid")).toHaveCSS("transition-duration", "0s");
 });

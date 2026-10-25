@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { newCommitment } from "../../src/domain/commitment";
+import { DEFAULT_FOCUS_VESSEL } from "../../src/domain/focusVessel";
 import { parseStoredCommitment } from "../../src/services/persistence/commitmentCodec";
 import { COMMITMENT_KEY, CommitmentRepository } from "../../src/services/persistence/commitmentRepository";
 
@@ -16,6 +17,25 @@ class MemoryStorage implements Storage {
 }
 
 describe("versioned local commitment", () => {
+  it("defaults new records to glass and accepts legacy version 1 records without a vessel preference", () => {
+    const current = record();
+    expect(current.vesselStyle).toBe(DEFAULT_FOCUS_VESSEL);
+    const { vesselStyle: _omitted, ...legacy } = current;
+    expect(parseStoredCommitment(JSON.stringify(legacy))).toEqual({ status: "valid", record: legacy });
+    expect(parseStoredCommitment(JSON.stringify({ ...current, vesselStyle: "unknown" })).status).toBe("corrupt");
+  });
+  it("confirms each supported vessel through the existing validated write path", () => {
+    const storage = new MemoryStorage();
+    const repository = new CommitmentRepository(() => storage);
+    repository.load();
+    const initial = record();
+    expect(repository.save(initial).status).toBe("saved");
+    for (const style of ["glass", "coffee", "mug", "bottle"] as const) {
+      const previous = repository.getLastConfirmed()!;
+      expect(repository.save({ ...previous, vesselStyle: style, revision: previous.revision + 1 }).status).toBe("saved");
+      expect(repository.getLastConfirmed()).toMatchObject({ vesselStyle: style, cumulativeRecordedFocusedMs: initial.cumulativeRecordedFocusedMs, lastConfirmedPositionMs: initial.lastConfirmedPositionMs });
+    }
+  });
   it("validates the initial record and confirms a save by exact read-back", () => {
     const storage = new MemoryStorage();
     const repository = new CommitmentRepository(() => storage);

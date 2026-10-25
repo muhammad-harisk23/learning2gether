@@ -75,13 +75,15 @@ Implements `prd.md > Screens and Layout`, `prd.md > Look and Feel`, and `scope.m
 
 ### App shell and entry coordinator
 
-Loads the single saved commitment, opens Home for both first-time and returning students, and uses storage-recovery view only for invalid or inaccessible data. My Learning remains a separate dashboard destination. The Home Continue Learning action opens the saved unfinished commitment paused. Setup remembers whether it was opened from Home or My Learning so Back returns to the originating view. Leaving Study Workspace for Home or My Learning checkpoints and interrupts the session without finishing or replacing the commitment.
+Loads the single saved commitment, opens Home for both first-time and returning students, and uses storage-recovery view only for invalid or inaccessible data. My Learning remains a separate dashboard destination. The Home Continue Learning action opens the saved unfinished commitment paused. Setup remembers whether it was opened from Home or My Learning so Back returns to the originating view. Leaving Study Workspace for Home, My Learning, or Privacy & Data checkpoints and interrupts the session without finishing or replacing the commitment.
+
+`SiteNavigation` is shared across every view and provides Home, The problem, How it works, My Learning, and Privacy & Data. From non-Home views, section links route back to Home and scroll to the requested section; leaving Study uses the established safe checkpoint path. `PrivacyDataPage` is informational and reads the current origin to explain the existing browser-local record and verified third-party boundary. It adds no persistence behavior or app service.
 
 Implements `prd.md > Home, saved-return, and entry`, `prd.md > My Learning and commitment continuity`, and `prd.md > States and Boundaries`.
 
 ### Editorial landing page
 
-Presents the specific exam-season problem, unfinished-learning cycle, fair limitations of fragmented tools, actual focus-and-continuity workflow, four current capabilities, and contextual CTA destinations. It contains no fake stats, testimonials, feature claims, or invented student progress. “See how it works” scrolls to the explanation; Start opens Setup; Continue Learning opens the saved unfinished lesson paused; My Learning opens the separate dashboard.
+Presents the specific student problem, unfinished-learning cycle, fair limitations of fragmented tools, actual focus-and-continuity workflow, four current capabilities, and contextual CTA destinations. A CSS animated, illustrative journey shows a lesson search, choices, competing distractions, and the focused workspace; labels state that the example is not a live search or activity record. Reduced motion presents the same stages as a static readable sequence. It contains no fake stats, testimonials, feature claims, or invented student progress. “See how it works” scrolls to the explanation; Start opens Setup; Continue Learning opens the saved unfinished lesson paused; My Learning opens the separate dashboard.
 
 Implements `prd.md > Screens and Layout > Home — editorial landing page` and `prd.md > Home, saved-return, and entry`.
 
@@ -99,13 +101,13 @@ Implements `prd.md > Screens and Layout > My Learning — saved commitment dashb
 
 ### Study workspace
 
-`StudyWorkspace` in `src/ui/App.tsx` keeps the standard YouTube player prominent, displays the objective and progress context, and provides a sticky Back to Home action plus the global My Learning navigation, Play/Resume, Pause, Recheck focus, Finish session, and separately confirmed Mark Lesson Complete. Leaving for Home or My Learning checkpoints and interrupts without finishing the commitment. Its playlist toggle shows YouTube's returned item count and actual ordered IDs; the current returned title is shown when available. Selecting a playlist item updates the same commitment and retains accumulated activity. The live timer updates at second-level precision; saved and session-only activity are labeled separately. The SVG/CSS Focus Cup uses the last confirmed persisted activity and current goal. It renders player/loading/autoplay/focus/storage/error/goal-reached states without obscuring YouTube controls.
+`StudyWorkspace` in `src/ui/App.tsx` keeps the standard YouTube player prominent, displays the objective and progress context, and provides a sticky Back to Home action plus the shared navigation, Play/Resume, Pause, Recheck focus, Finish session, and separately confirmed Mark Lesson Complete. Leaving for Home, My Learning, or Privacy & Data checkpoints and interrupts without finishing the commitment. Its playlist toggle sits above the player and opens the existing overlay without changing player or progress layout; it shows YouTube's returned item count and actual ordered IDs, with the current returned title when available. Session actions remain in a native collapsed disclosure with a visible expanded/collapsed indicator. Selecting a playlist item updates the same commitment and retains accumulated activity. The live timer updates at second-level precision; saved and session-only activity are labeled separately. The SVG/CSS Focus Cup uses the last confirmed persisted activity and current goal. It renders player/loading/autoplay/focus/storage/error/goal-reached states without obscuring YouTube controls.
 
 Implements `prd.md > Screens and Layout > Focused study workspace`, `prd.md > Focused study, activity, goal reached, and session finish`, and `prd.md > States and Boundaries`.
 
 ### Commitment domain and goal calculations
 
-`src/domain/commitment.ts` defines commitment/session types and objective rules; `src/domain/focusGoal.ts` validates goals and calculates remainder/Cup fill. The App coordinates transitions through the single `CommitmentRepository`; it does not read or write `localStorage` directly.
+`src/domain/commitment.ts` defines commitment/session types and objective rules; `src/domain/focusGoal.ts` validates goals and calculates remainder/Cup fill; `src/domain/focusVessel.ts` defines the validated vessel preference, default, and goal-transition rule. The App coordinates transitions through the single `CommitmentRepository`; it does not read or write `localStorage` directly.
 
 Implements `prd.md > Setup and candidate lesson loading` and `prd.md > My Learning and commitment continuity`.
 
@@ -169,7 +171,7 @@ The only module allowed to read/write the authoritative local record. Use key `k
 
 `load()` returns a discriminated result: `empty`, `valid`, `corrupt`, `unsupported-version`, or `unavailable`. Parse JSON in a try/catch and validate types, enums, ID format, goal 5–240, nonnegative finite playback position and activity, and timestamps before hydrating app state. On corrupt or unsupported data, preserve the exact raw string and block writes to that key; show a user-facing recovery message and do not silently start over or overwrite it. If storage is inaccessible before a commitment exists, explain the limitation and do not claim persistence or start the required persistent workflow until storage becomes available. No migration is needed for version 1; future migrations must explicitly support known older versions and retain the raw value until a migrated write succeeds.
 
-The commitment stores: `schemaVersion`, `revision`, `lesson.videoId`, `lesson.canonicalUrl`, `objective`, `goalMinutes`, `lastConfirmedPositionMs`, `cumulativeRecordedFocusedMs`, `lessonStatus` (`unfinished` or `completed`), `sessionStatus` (`not-started`, `active`, `interrupted`, or `finished`), `createdAt`, and `updatedAt`. A confirmed interruption is persisted as `interrupted`; if the browser closes while status is `active`, load treats it as interrupted. Neither state is resumed or credited automatically. There is one current commitment; there is no archive.
+The commitment stores: `schemaVersion`, `revision`, `lesson.videoId`, `lesson.canonicalUrl`, `objective`, `goalMinutes`, optional `vesselStyle` (`glass`, `coffee`, `mug`, or `bottle`), `lastConfirmedPositionMs`, `cumulativeRecordedFocusedMs`, `lessonStatus` (`unfinished` or `completed`), `sessionStatus` (`not-started`, `active`, `interrupted`, or `finished`), `createdAt`, and `updatedAt`. Version 1 records without `vesselStyle` remain valid and display the default `glass`; loading does not rewrite them. A vessel change is persisted only through the existing validated repository path and changes no lesson, goal, playback, activity, or completion fields. A confirmed interruption is persisted as `interrupted`; if the browser closes while status is `active`, load treats it as interrupted. Neither state is resumed or credited automatically. There is one current commitment; there is no archive.
 
 Storage writes occur at candidate acceptance, goal changes, player position checkpoints, eligible-time checkpoints, Finish session, and confirmed Mark Lesson Complete. Writes are not deferred solely to page unload. The UI exposes `saving` during a write and `saved` only after confirmed write/read-back; error states show the last confirmed save time/revision. Activity since the last confirmed checkpoint is labeled **in this session, not yet saved** (or equivalent), separately from the saved total. A write blocked before `setItem` is `not-saved`; if `setItem` throws, read back when possible and call it definitely failed only if the prior raw value is confirmed unchanged. Stop/pause recording and playback where supported, keep the in-memory change visible, and offer retry only after the current stored record has been validated and still matches this tab's expected value. A failed completion/replacement is never displayed as committed. A successful replacement overwrites the sole record only after candidate acceptance and confirmed persistence.
 
@@ -185,13 +187,13 @@ Implements `prd.md > My Learning and commitment continuity`, `prd.md > YouTube e
 
 ### Focus Cup
 
-Render an accessible inline SVG/CSS cup. Its accessible text reports exact cumulative recorded focused activity and current target; its decorative liquid fill is derived from the same domain calculation and capped at 100%. A 90-minute total against a 25-minute goal displays 90 minutes, 0 minutes remaining, and a 100% fill while the lesson status remains Unfinished unless explicitly completed. Goal edits never reset the total. Apply restrained CSS fill transitions and disable them under `prefers-reduced-motion`.
+Render an accessible inline SVG/CSS Focus Cup with four selectable vessels: transparent glass, coffee cup, mug, and bottle. Each has a small preview; the selected style is persisted as the optional version 1 `vesselStyle` preference, with glass as the no-write default for legacy records. Its accessible text reports exact cumulative recorded focused activity and current target; its decorative liquid fill is derived from `min(recordedFocusedMs / goalMs, 1)`, with a transparent dimensional body, visible liquid surface/highlights, and coffee-colored fill for the coffee cup. A 90-minute total against a 25-minute goal displays 90 minutes and 100% fill while lesson status remains Unfinished unless explicitly completed. Goal and vessel changes never reset activity. A brief rim overflow runs only when a newly observed persisted activity update crosses the unchanged goal from below; it does not run on load, goal/style changes, or unrelated renders. The completed label remains after the effect. Respect `prefers-reduced-motion` by removing fill and overflow motion.
 
 Implements `prd.md > My Learning — returning student home`, `prd.md > Look and Feel`, and the cumulative Focus Cup acceptance criteria.
 
 ### Testing seams and suites
 
-`FocusController` accepts an injectable monotonic clock, interval scheduler, and `FocusSignalSource`, allowing Vitest to test time accounting deterministically. The production UI composes the real browser focus source, official YouTube adapter, and local repository in `src/ui/App.tsx`. Playwright runs Chromium UI flows against the same app with a test-injected fake YouTube IFrame API; those tests verify visible state transitions but do not prove real playback or native desktop focus. The separate first-lesson Playwright test uses the real YouTube embed. Manual checks in actual Chromium and Firefox remain necessary for iframe controls, tab switching, minimizing, switching applications, buffering/errors, return-without-autoplay, and cleanup/reload.
+`FocusController` accepts an injectable monotonic clock, interval scheduler, and `FocusSignalSource`, allowing Vitest to test time accounting deterministically. The production UI composes the real browser focus source, official YouTube adapter, and local repository in `src/ui/App.tsx`. Playwright runs homepage story/navigation/privacy and Chromium/Firefox UI flows against the same app; deterministic study-workspace flows use a test-injected fake YouTube IFrame API and do not prove real playback or native desktop focus. The separate first-lesson Playwright test uses the real YouTube embed. Manual checks in actual Chromium and Firefox remain necessary for iframe controls, tab switching, minimizing, switching applications, buffering/errors, return-without-autoplay, and cleanup/reload.
 
 Playwright does not model actual tab activation merely by creating multiple pages: pages in one browser context are not a substitute for OS-level focus evidence. The injected UI tests verify reactions to hidden, confirmed-lost, and ambiguous signals; manual browser checks establish how actual browser and iframe interactions report those signals.
 
@@ -245,6 +247,7 @@ project/
 │   ├── domain/
 │   │   ├── commitment.ts              # commitment and completion data rules
 │   │   ├── focusGoal.ts               # goal validation and progress math
+│   │   ├── focusVessel.ts             # vessel preference and goal crossing rule
 │   │   └── youtubeUrl.ts              # supported video and playlist URL parsing
 │   ├── services/
 │   │   ├── focus/
@@ -257,12 +260,12 @@ project/
 │   │       ├── iframeApi.ts           # typed official IFrame API surface and loader
 │   │       └── playerAdapter.ts       # candidate confirmation, playback and playlist adapter
 │   └── ui/
-│       ├── App.tsx                    # navigation, setup, My Learning and study workspace
+│       ├── App.tsx                    # shared navigation, Home story/privacy, setup, My Learning and study workspace
 │       ├── FocusCup.tsx               # accessible dimensional SVG cup
 │       └── styles.css                 # responsive visual system and reduced motion
 ├── tests/
 │   ├── unit/                          # domain, focus, persistence and player tests
-│   └── e2e/                           # real embed smoke test and deterministic workspace flows
+│   └── e2e/                           # Home story/navigation/privacy, real embed smoke test and deterministic workspace flows
 └── devpost/
     ├── learner-profile.md
     ├── scope.md
