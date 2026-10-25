@@ -64,6 +64,12 @@ Build mode: fast
 - [x] Early usable behavior explored — after slice 1, before the remaining visual and study work is locked in
 - [ ] Final kick-the-tires exploration and feedback completed — after slice 5
 
+## Verified Follow-up
+
+- [x] Optional Light/Dark presentation preference implemented without changing the commitment record or product scope. The browser-local value is validated, read-back confirmed, keyboard accessible, and applied across Home, Setup, My Learning, Privacy & Data, and the study workspace. Invalid or unavailable storage falls back to Light; a failed preference write is reported as visit-only.
+  Verification: `npm run typecheck`, `npm test` (51 passed), `npm run test:e2e -- --workers=1` (44 passed across Chromium and Firefox), plus the final focused theme subset (6 passed across both browsers), `npm run build`, and `git diff --check`. Visually inspected Home/story and study-workspace captures at 1440×900 and 390×844 in both themes; also inspected dark Setup, My Learning, and Privacy & Data captures at desktop size. The Focus Cup was reviewed in workspace and My Learning captures.
+  Browser evidence: the real YouTube embed smoke test passed in Chromium and Firefox. Focus/minimize behavior remains subject to the separate manual browser checklist; simulated focus tests are not native focus verification.
+
 ## Final Review
 
 - [ ] Re-test the Home-first saved-return story, separate My Learning destination, and workspace back-to-Home action; report any remaining issue and confirm readiness.
@@ -85,3 +91,4 @@ Activity mode: pending
 - On 2026-10-25, the learner approved one supplied YouTube playlist as an alternative single active commitment. This remains narrow: actual IFrame API IDs/order, current title only, no Data API key or metadata service, and no discovery/collections.
 - On 2026-10-25, final review identified that saved records bypassed the editorial Home and the study back action opened My Learning. The approved POC now keeps Home as the entry point, makes My Learning a separate destination, and provides contextual Continue Learning; the landing story follows the supplied exam-pressure/resource-switching narrative. Scope remains unchanged. Automated checks pass; final learner retry is pending.
 - On 2026-10-25, focused workspace feedback added an above-player playlist toggle, an explicit collapsed Session actions indicator, and four persisted Focus Cup vessel styles. Legacy version 1 records default to glass without a migration write; vessel changes preserve all study progress. This does not close the final learner-review checkpoint.
+- On 2026-10-25, an optional Light/Dark presentation preference was implemented under a separate validated browser-local key. The technical spec records this follow-up as draft pending learner review; scope and PRD remain unchanged.

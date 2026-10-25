@@ -1,11 +1,13 @@
 ﻿---
 doc: spec
-status: approved
+status: draft
 ---
 
 # K12Learn2Gether — Technical Spec
 
 This plan implements the approved solo-first product in `scope.md` and `prd.md`. It does not include accounts, server infrastructure, cloud sync, collaboration, AI tutoring, archives, streaks, or a course library. The earlier Bolt.new application is not an implementation source; this is a fresh codebase.
+
+This draft revision documents implementation of the PRD's optional-later Dark appearance as a browser-local presentation preference. It adds no learning workflow or service and does not alter the PRD's core acceptance scope or commitment record.
 
 ## How This Works, In Plain Language
 
@@ -65,6 +67,7 @@ Documentation:
 Implements `prd.md > Screens and Layout`, `prd.md > Look and Feel`, and `scope.md > Inspiration & Identity`.
 
 - Warm white `#FAF9F5`, electric lime `#D9F525`, soft pink `#F8C7D9`, and rich ink black. Define these as CSS custom properties in one token file.
+- Keep Light as the default and preserve the existing warm-white/lime/pink/ink identity. The optional Dark theme uses warm charcoal surfaces, off-white text, retained lime actions, muted rose panels, differentiated surfaces and borders, and semantic tokens for secondary, disabled, warning, and error states. Do not use inversion or add theme-switch motion. Check ordinary text contrast to WCAG AA where practical.
 - Editorial headlines use a restrained serif/system display pairing; body copy and controls use a highly readable system sans stack. Avoid downloading fonts as a runtime dependency.
 - Use generous whitespace, deliberate type scale, and a strong lesson-first workspace hierarchy. The landing story uses a composed Search → Compare → Save → Start → Switch → Repeat illustration that remains understandable without motion.
 - The Focus Cup is an original inline SVG/CSS illustration with shaded rim/body and a clipping path or mask for a fluid fill. The fill is derived only from cumulative recorded activity divided by the current goal, capped at 100%; exact time and goal labels remain visible separately. Respect `prefers-reduced-motion`; no confetti, rewards, or animation required to interpret progress.
@@ -80,6 +83,12 @@ Loads the single saved commitment, opens Home for both first-time and returning 
 `SiteNavigation` is shared across every view and provides Home, The problem, How it works, My Learning, and Privacy & Data. From non-Home views, section links route back to Home and scroll to the requested section; leaving Study uses the established safe checkpoint path. `PrivacyDataPage` is informational and reads the current origin to explain the existing browser-local record and verified third-party boundary. It adds no persistence behavior or app service.
 
 Implements `prd.md > Home, saved-return, and entry`, `prd.md > My Learning and commitment continuity`, and `prd.md > States and Boundaries`.
+
+### Theme preference
+
+`App` owns the current `ThemePreference` and passes it to the accessible Light/Dark toggle in `SiteNavigation`, which remains present on Home, Setup, My Learning, Privacy & Data, recovery, and the study workspace. Each option exposes `aria-pressed`; both work with keyboard input and have a visible focus indicator. A synchronous, guarded bootstrap in `index.html` applies a validated preference before React and its imported stylesheet load, reducing a wrong-theme first paint. React then reads the same value through `themePreference.ts` and owns subsequent changes.
+
+Persist only the exact strings `light` or `dark` under `k12learn2gether.theme`; confirm an explicit write by reading the key back. This presentation key is separate from `k12learn2gether.commitment` and never rewrites or migrates learning progress. Missing/invalid values and read errors choose Light. If a later preference write cannot be confirmed, apply the choice for the current visit and explain that it will not persist. No cross-tab theme synchronization is promised. Semantic CSS custom properties drive all application surfaces, including the editorial story and Focus Cup glass; the YouTube iframe remains owned by its standard player.
 
 ### Editorial landing page
 
@@ -195,12 +204,23 @@ Implements `prd.md > My Learning — returning student home`, `prd.md > Look and
 
 `FocusController` accepts an injectable monotonic clock, interval scheduler, and `FocusSignalSource`, allowing Vitest to test time accounting deterministically. The production UI composes the real browser focus source, official YouTube adapter, and local repository in `src/ui/App.tsx`. Playwright runs homepage story/navigation/privacy and Chromium/Firefox UI flows against the same app; deterministic study-workspace flows use a test-injected fake YouTube IFrame API and do not prove real playback or native desktop focus. The separate first-lesson Playwright test uses the real YouTube embed. Manual checks in actual Chromium and Firefox remain necessary for iframe controls, tab switching, minimizing, switching applications, buffering/errors, return-without-autoplay, and cleanup/reload.
 
+Theme preference unit tests cover valid/invalid values, Light fallback, write/read-back confirmation, blocked storage, and isolation from the commitment key. Playwright verifies the Light default, keyboard switching, reload persistence, invalid preference fallback, a storage-blocked session-only choice, theme application across Home/Setup/My Learning/Privacy & Data/study workspace and Focus Cup, and unchanged commitment bytes when switching in both saved-learning and study views. Captures at desktop and mobile sizes support manual visual review of both themes; they are not evidence of native browser-focus behavior.
+
 Playwright does not model actual tab activation merely by creating multiple pages: pages in one browser context are not a substitute for OS-level focus evidence. The injected UI tests verify reactions to hidden, confirmed-lost, and ambiguous signals; manual browser checks establish how actual browser and iframe interactions report those signals.
 
 Implements the testing requirements in `prd.md > Setup and candidate lesson loading`, `prd.md > My Learning and commitment continuity`, `prd.md > Focused study, activity, goal reached, and session finish`, and `prd.md > YouTube error recovery and local persistence`.
 ## Data Model
 
 There is one authoritative browser-local record and no remote data model.
+
+The presentation preference is a separate, non-authoritative browser-local setting and is not part of `CommitmentRecordV1`:
+
+```ts
+type ThemePreference = "light" | "dark";
+const THEME_STORAGE_KEY = "k12learn2gether.theme";
+```
+
+Only those two exact values are valid. Invalid or unavailable storage selects Light. A preference write is confirmed only when read-back matches. If verification fails, the chosen theme remains in memory for the current visit, the UI reports that it is not saved, and commitment data is not touched. Theme settings remain specific to the exact browser origin like other local storage values.
 
 ```ts
 type LessonStatus = "unfinished" | "completed";
@@ -262,10 +282,12 @@ project/
 │   └── ui/
 │       ├── App.tsx                    # shared navigation, Home story/privacy, setup, My Learning and study workspace
 │       ├── FocusCup.tsx               # accessible dimensional SVG cup
+│       ├── ThemeToggle.tsx             # keyboard-accessible Light/Dark control
+│       ├── themePreference.ts          # validated theme read/write and application
 │       └── styles.css                 # responsive visual system and reduced motion
 ├── tests/
-│   ├── unit/                          # domain, focus, persistence and player tests
-│   └── e2e/                           # Home story/navigation/privacy, real embed smoke test and deterministic workspace flows
+│   ├── unit/                          # domain, focus, persistence, player, and theme tests
+│   └── e2e/                           # Home story/navigation/privacy, real embed, theme, and workspace flows
 └── devpost/
     ├── learner-profile.md
     ├── scope.md
@@ -343,6 +365,8 @@ The build should work in narrow, verifiable slices. Each slice must type-check a
 - Multiple session tests: finish → reload → continue retains the prior total and adds only new eligible deltas once.
 - Finish session versus Mark Lesson Complete: Finish leaves status unfinished; goal reach, YouTube ENDED and timestamp do not complete; cancel completion leaves state intact; confirmed completion persists `completed` and retains all progress.
 - Focus Cup calculation test: 90 eligible minutes / 25-minute goal → 100% fill, 90 minutes shown, zero remaining, unfinished lesson unless explicitly completed; reduced-motion styling disables transitions.
+- Theme preference tests: fresh/invalid/unavailable storage selects Light; only `light`/`dark` are accepted; write read-back must match; the commitment key remains byte-for-byte unchanged. Playwright verifies keyboard toggle semantics, switching, reload persistence, invalid and blocked storage behavior, and continued theme availability across major views.
+- Theme visual checks: inspect Light and Dark at desktop and mobile sizes, including Home/story, form controls, Privacy & Data, Focus Cup, and study workspace. Check muted text, lime-filled controls, warnings/errors, disabled states, focus indicators, and native form controls; reduced motion adds no theme transition.
 - Adapter lifecycle: one player per mount, one shared API script loader, callbacks ignored after dispose, player destroyed once, listeners/timers cleaned on unmount.
 - Playwright Chromium flows: first-use and saved-return Home → Setup → Study; contextual Continue Learning; separate My Learning navigation; workspace return to Home; goal changes; safe failed replacement; reload and paused restore; Finish versus Complete; keyboard-accessible controls and mobile-width layout. Use test data/fake player only in test fixtures; never show that data as real product progress.
 

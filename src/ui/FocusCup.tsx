@@ -40,10 +40,10 @@ const vesselShapes: Record<FocusVesselStyle, { body: string; inside: string; rim
 };
 
 function VesselPreview({ style }: { style: FocusVesselStyle }) {
-  if (style === "bottle") return <svg viewBox="0 0 36 36" aria-hidden="true"><path d="M14 7V4h8v3l3 3 2 20H9l2-20z" fill="none" stroke="currentColor" strokeWidth="1.8"/><path d="M11 22h14l1 7H10z" fill="#d9f525"/></svg>;
+  if (style === "bottle") return <svg viewBox="0 0 36 36" aria-hidden="true"><path d="M14 7V4h8v3l3 3 2 20H9l2-20z" fill="none" stroke="currentColor" strokeWidth="1.8"/><path d="M11 22h14l1 7H10z" fill="var(--lime)"/></svg>;
   if (style === "mug") return <svg viewBox="0 0 36 36" aria-hidden="true"><path d="M7 9h19v20H9zM26 13h3a4 4 0 0 1 0 9h-3" fill="none" stroke="currentColor" strokeWidth="1.8"/><path d="M9 22h16v6H9z" fill="#4d9a9c"/></svg>;
   if (style === "coffee") return <svg viewBox="0 0 36 36" aria-hidden="true"><path d="M7 12h19l-2 16H10zM26 15h2a4 4 0 0 1 0 8h-3" fill="none" stroke="currentColor" strokeWidth="1.8"/><path d="M9 21h16l-1 6H10z" fill="#79533a"/></svg>;
-  return <svg viewBox="0 0 36 36" aria-hidden="true"><path d="M8 8h20l-2 22H10z" fill="none" stroke="currentColor" strokeWidth="1.8"/><path d="M10 20h16l-1 9H11z" fill="#d9f525"/></svg>;
+  return <svg viewBox="0 0 36 36" aria-hidden="true"><path d="M8 8h20l-2 22H10z" fill="none" stroke="currentColor" strokeWidth="1.8"/><path d="M10 20h16l-1 9H11z" fill="var(--lime)"/></svg>;
 }
 
 export function FocusCup({
@@ -89,23 +89,23 @@ export function FocusCup({
   return <figure className={`${compact ? "focus-cup compact" : "focus-cup"}${celebrating ? " celebrating" : ""}`} data-vessel={vesselStyle} data-celebrating={celebrating ? "true" : "false"}>
     <svg className="cup-illustration" viewBox="0 0 240 220" role="img" aria-label={label}>
       <defs>
-        <linearGradient id={`${id}-glass`} x1="0" x2="1" y1="0" y2="0"><stop offset="0" stopColor="#7e7a6f"/><stop offset=".18" stopColor="#fffef9"/><stop offset=".43" stopColor="#d8d6cc"/><stop offset=".7" stopColor="#fffef9"/><stop offset="1" stopColor="#77746b"/></linearGradient>
+        <linearGradient id={`${id}-glass`} x1="0" x2="1" y1="0" y2="0"><stop offset="0" stopColor="var(--cup-glass-edge)"/><stop offset=".18" stopColor="var(--cup-glass-highlight)"/><stop offset=".43" stopColor="var(--cup-glass-mid)"/><stop offset=".7" stopColor="var(--cup-glass-highlight)"/><stop offset="1" stopColor="var(--cup-glass-other-edge)"/></linearGradient>
         <linearGradient id={`${id}-liquid`} x1="0" x2="1" y1="0" y2=".8"><stop offset="0" stopColor={liquidColors[0]}/><stop offset=".46" stopColor={liquidColors[1]}/><stop offset="1" stopColor={liquidColors[2]}/></linearGradient>
-        <linearGradient id={`${id}-shadow`} x1="0" x2="1"><stop offset="0" stopColor="#171813" stopOpacity=".4"/><stop offset=".5" stopColor="#171813" stopOpacity="0"/><stop offset="1" stopColor="#171813" stopOpacity=".28"/></linearGradient>
+        <linearGradient id={`${id}-shadow`} x1="0" x2="1"><stop offset="0" stopColor="var(--shadow-ink)" stopOpacity=".4"/><stop offset=".5" stopColor="var(--shadow-ink)" stopOpacity="0"/><stop offset="1" stopColor="var(--shadow-ink)" stopOpacity=".28"/></linearGradient>
         <clipPath id={`${id}-inside`}><path d={shape.inside}/></clipPath>
       </defs>
-      <ellipse cx="120" cy="202" rx="72" ry="9" fill="#171813" opacity=".14"/>
-      {(vesselStyle === "coffee" || vesselStyle === "mug") && <><path d={vesselStyle === "coffee" ? "M168 77 H181 Q205 77 201 111 Q198 135 164 136" : "M169 76 H184 Q215 76 211 115 Q208 149 169 151"} fill="none" stroke="#858176" strokeWidth={vesselStyle === "mug" ? 17 : 15}/><path d={vesselStyle === "coffee" ? "M167 80 H179 Q198 80 195 109 Q192 128 164 130" : "M168 80 H182 Q207 80 204 114 Q201 143 168 145"} fill="none" stroke={`url(#${id}-glass)`} strokeWidth="8"/></>}
+      <ellipse cx="120" cy="202" rx="72" ry="9" fill="var(--shadow-ink)" opacity=".14"/>
+      {(vesselStyle === "coffee" || vesselStyle === "mug") && <><path d={vesselStyle === "coffee" ? "M168 77 H181 Q205 77 201 111 Q198 135 164 136" : "M169 76 H184 Q215 76 211 115 Q208 149 169 151"} fill="none" stroke="var(--cup-handle)" strokeWidth={vesselStyle === "mug" ? 17 : 15}/><path d={vesselStyle === "coffee" ? "M167 80 H179 Q198 80 195 109 Q192 128 164 130" : "M168 80 H182 Q207 80 204 114 Q201 143 168 145"} fill="none" stroke={`url(#${id}-glass)`} strokeWidth="8"/></>}
       <g clipPath={`url(#${id}-inside)`}>
         <rect className="cup-liquid" x="55" y={fillY} width="130" height={shape.capacityBottom - fillY} fill={`url(#${id}-liquid)`}/>
-        {percent > 0 && <path className="cup-liquid-surface" d={`M57 ${fillY} Q84 ${fillY - 5} 110 ${fillY} T160 ${fillY} T190 ${fillY}`} fill="none" stroke="#f7ffbb" strokeWidth="3" opacity=".9"/>}
+        {percent > 0 && <path className="cup-liquid-surface" d={`M57 ${fillY} Q84 ${fillY - 5} 110 ${fillY} T160 ${fillY} T190 ${fillY}`} fill="none" stroke="var(--cup-liquid-highlight)" strokeWidth="3" opacity=".9"/>}
         <rect x="55" y="29" width="130" height="160" fill={`url(#${id}-shadow)`}/>
       </g>
-      <path d={shape.body} fill="rgba(255,254,249,.16)" stroke="#403f38" strokeWidth="2"/>
+      <path d={shape.body} fill="var(--cup-body-tint)" stroke="var(--cup-body-stroke)" strokeWidth="2"/>
       <path d={shape.rim} fill="none" stroke={`url(#${id}-glass)`} strokeWidth="7" strokeLinecap="round"/>
-      {vesselStyle !== "bottle" && <ellipse cx={vesselStyle === "glass" ? 120 : 111} cy={vesselStyle === "glass" ? 51 : 57} rx={vesselStyle === "glass" ? 59 : 56} ry="8" fill={`url(#${id}-glass)`} stroke="#403f38" strokeWidth="2"/>}
-      <path d={vesselStyle === "bottle" ? "M84 72 L91 170" : "M75 66 L87 173"} fill="none" stroke="#fff" strokeWidth="5" opacity=".7"/>
-      <path d={vesselStyle === "bottle" ? "M155 73 L150 170" : "M165 64 L155 174"} fill="none" stroke="#fff" strokeWidth="2" opacity=".55"/>
+      {vesselStyle !== "bottle" && <ellipse cx={vesselStyle === "glass" ? 120 : 111} cy={vesselStyle === "glass" ? 51 : 57} rx={vesselStyle === "glass" ? 59 : 56} ry="8" fill={`url(#${id}-glass)`} stroke="var(--cup-body-stroke)" strokeWidth="2"/>}
+      <path d={vesselStyle === "bottle" ? "M84 72 L91 170" : "M75 66 L87 173"} fill="none" stroke="var(--cup-glass-highlight)" strokeWidth="5" opacity=".7"/>
+      <path d={vesselStyle === "bottle" ? "M155 73 L150 170" : "M165 64 L155 174"} fill="none" stroke="var(--cup-glass-highlight)" strokeWidth="2" opacity=".55"/>
       <path className="cup-overflow" d="M75 48 Q83 35 95 48 Q106 33 118 48 Q131 31 143 48 Q155 35 165 48" fill="none" stroke={`url(#${id}-liquid)`} strokeWidth="8" strokeLinecap="round"/>
     </svg>
     <figcaption><span className="cup-time">{label}</span>{percent === 100 && <strong className="goal-reached">Focus-time goal reached</strong>}<span className="cup-percent">{percent}% of your goal</span></figcaption>
