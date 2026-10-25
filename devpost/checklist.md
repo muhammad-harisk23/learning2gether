@@ -9,7 +9,7 @@ Build mode: fast
 
 ## Slices
 
-- [ ] **1. A student can choose a lesson and open the real player**
+- [x] **1. A student can choose a lesson and open the real player**
   Becomes usable: The first visit explains the problem, Setup validates one lesson, objective, and goal, and a confirmed YouTube candidate is saved before opening a usable study workspace. No activity is claimed yet.
   Why now: This crosses the first-visit journey and tests the unfamiliar YouTube embed early; the Vite scaffold and visual foundation belong inside this first working step.
   PRD ref: `prd.md > Landing, first visit, and entry`, `prd.md > Setup and candidate lesson loading`
@@ -61,7 +61,7 @@ Build mode: fast
 
 ## Hands-on Checkpoints
 
-- [ ] Early usable behavior explored — after slice 1, before the remaining visual and study work is locked in
+- [x] Early usable behavior explored — after slice 1, before the remaining visual and study work is locked in
 - [ ] Final kick-the-tires exploration and feedback completed — after slice 5
 
 ## Final Review
