@@ -1,4 +1,8 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page } from "./fixtures";
+
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("k12learn2gether.policy-consent.v1", "accepted"));
+});
 
 const firstVideo = "dQw4w9WgXcQ";
 const secondVideo = "M7lc1UVf-VE";
@@ -95,15 +99,18 @@ test("playlist panel shows real ordered entries, expands, collapses, and selecti
   const toggle = page.locator(".playlist-toggle");
   await expect(toggle).toContainText("Playlist · 2 lessons");
   await expect(toggle).toHaveAttribute("aria-expanded", "false");
-  const playerBeforeOpen = await page.locator(".player-frame").boundingBox();
-  const progressBeforeOpen = await page.locator(".study-side").boundingBox();
   await toggle.focus();
   await page.keyboard.press("Enter");
   await expect(toggle).toHaveAttribute("aria-expanded", "true");
   await expect(page.locator(".playlist-item")).toHaveCount(2);
-  await expect(page.locator("#playlist-panel")).toHaveCSS("position", "absolute");
-  expect(await page.locator(".player-frame").boundingBox()).toEqual(playerBeforeOpen);
-  expect(await page.locator(".study-side").boundingBox()).toEqual(progressBeforeOpen);
+  await expect(page.locator("#playlist-panel")).toHaveCSS("position", "static");
+  const playlistPanel = await page.locator("#playlist-panel").boundingBox();
+  const playerFrame = await page.locator(".player-frame").boundingBox();
+  expect(playlistPanel).not.toBeNull();
+  expect(playerFrame).not.toBeNull();
+  expect(playlistPanel!.y + playlistPanel!.height).toBeLessThanOrEqual(playerFrame!.y);
+  expect(playerFrame!.width).toBeGreaterThanOrEqual(200);
+  expect(playerFrame!.height).toBeGreaterThanOrEqual(200);
   await expect(page.locator(".playlist-item").nth(0)).toContainText("Real first title from the test player");
   await expect(page.locator(".playlist-item").nth(1)).toContainText(secondVideo);
   await expect(page.getByText(/exposes a title only for the current video/i)).toBeVisible();
@@ -114,7 +121,6 @@ test("playlist panel shows real ordered entries, expands, collapses, and selecti
   const beforeCommitment = await readActiveCommitment(page);
   await page.locator(".playlist-item").nth(1).click();
   await expect.poll(async () => (await readActiveCommitment(page)).lesson.videoId).toBe(secondVideo);
-  await expect.poll(async () => (await readActiveCommitment(page)).lesson.playlistIndex).toBe(1);
   const afterCommitment = await readActiveCommitment(page);
   expect(afterCommitment.objective).toBe(beforeCommitment.objective);
   expect(afterCommitment.goalMinutes).toBe(beforeCommitment.goalMinutes);
@@ -129,7 +135,8 @@ test("playlist panel shows real ordered entries, expands, collapses, and selecti
   await page.getByRole("button", { name: /Continue Learning/ }).click();
   await expect(page.locator(".player-host iframe")).toBeVisible();
   await expect.poll(() => page.evaluate(() => (window as any).__seekCalls.length)).toBeGreaterThan(0);
-  expect((await readActiveCommitment(page)).lesson).toMatchObject({ videoId: secondVideo, playlistIndex: 1 });
+  expect((await readActiveCommitment(page)).lesson).toMatchObject({ videoId: secondVideo });
+  expect((await readActiveCommitment(page)).lesson).not.toHaveProperty("playlistIndex");
   expect(await page.evaluate(() => (window as any).__seekCalls.at(-1).seconds)).toBeCloseTo(373.25, 1);
   expect(await page.evaluate(() => (window as any).__playCalls)).toBe(1);
 });
@@ -388,11 +395,14 @@ test("desktop workspace fits the viewport and keeps essential controls visible a
       viewportWidth: window.innerWidth,
     }))).toEqual({ height: viewport.height, width: viewport.width, viewportHeight: viewport.height, viewportWidth: viewport.width });
     await page.screenshot({ path: testInfo.outputPath(`study-workspace-${viewport.width}x${viewport.height}.png`) });
-    const playerBox = await page.locator(".player-frame").boundingBox();
     const sideBox = await page.locator(".study-side").boundingBox();
     await page.locator(".playlist-toggle").click();
     await expect(page.locator("#playlist-panel")).toBeInViewport();
-    expect(await page.locator(".player-frame").boundingBox()).toEqual(playerBox);
+    const expandedPanel = await page.locator("#playlist-panel").boundingBox();
+    const expandedFrame = await page.locator(".player-frame").boundingBox();
+    expect(expandedPanel!.y + expandedPanel!.height).toBeLessThanOrEqual(expandedFrame!.y);
+    expect(expandedFrame!.width).toBeGreaterThanOrEqual(200);
+    expect(expandedFrame!.height).toBeGreaterThanOrEqual(200);
     expect(await page.locator(".study-side").boundingBox()).toEqual(sideBox);
     await expect.poll(() => page.evaluate(() => ({ height: document.documentElement.scrollHeight, width: document.documentElement.scrollWidth })))
       .toEqual({ height: viewport.height, width: viewport.width });

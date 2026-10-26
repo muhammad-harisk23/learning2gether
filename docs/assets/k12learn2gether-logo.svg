@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="104" viewBox="0 0 760 104" role="img" aria-labelledby="title desc">
+  <title id="title">K12Learn2Gether</title>
+  <desc id="desc">A lime, slightly tilted square with a black K and small four-point accent, followed by the K12Learn2Gether wordmark.</desc>
+  <rect width="760" height="104" fill="#faf9f5" stroke="#171813" stroke-width="2"/>
+  <g transform="rotate(-7 53 52)">
+    <rect x="20" y="19" width="66" height="66" fill="#d9f525" stroke="#171813" stroke-width="2"/>
+    <text x="53" y="67" fill="#171813" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="43" font-weight="900" text-anchor="middle">K</text>
+  </g>
+  <path d="M92 17 95 24 102 27 95 30 92 37 89 30 82 27 89 24Z" fill="#f8c7d9" stroke="#171813" stroke-width="1.5"/>
+  <text x="116" y="66" fill="#171813" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="42" font-weight="800" letter-spacing="-1.7">K12Learn2Gether</text>
+</svg>

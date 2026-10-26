@@ -67,13 +67,12 @@ export function LearningDashboard({ library, onAdd, onOpen, onVesselStyleChange 
 function LibraryCard({ item, onOpen }: { item: LibraryItem; onOpen: () => void }) {
   const percent = itemProgress(item);
   const status = itemStatus(item);
-  const playlistCount = item.commitment.lesson.playlistVideoIds?.length;
   return <article className="library-card">
     <div className="library-card-top"><span className="subject-label">{item.subject}</span><span className={`library-status ${status}`}>{status === "completed" ? "Marked complete" : status === "in-progress" ? "In progress" : "Not started"}</span></div>
     <h3>{item.title}</h3><p className="library-objective">{item.commitment.objective}</p>
     <div className="library-progress-line"><span>Focus goal progress · {percent}%</span><span>{formatLibraryTime(item.commitment.cumulativeRecordedFocusedMs)} recorded</span></div>
     <progress className="library-progress" max={100} value={percent} aria-label={`${percent} percent of focus goal`} />
-    <div className="library-card-meta"><span>{item.sourceType === "playlist" ? `Playlist${playlistCount ? ` · ${playlistCount} videos` : ""}` : "Video"}</span><span>{item.lastStudiedAt ? `Last studied ${formatDate(item.lastStudiedAt)}` : "Not studied yet"}</span><span>Continue from {formatPosition(item.commitment.lastConfirmedPositionMs)}</span></div>
+    <div className="library-card-meta"><span>{item.sourceType === "playlist" ? "YouTube playlist" : "YouTube video"}</span><span>{item.lastStudiedAt ? `Last studied ${formatDate(item.lastStudiedAt)}` : "Not studied yet"}</span><span>Continue from {formatPosition(item.commitment.lastConfirmedPositionMs)}</span></div>
     <button className="text-button library-open" onClick={onOpen}>{status === "completed" ? "Open saved resource" : status === "not-started" ? "Start learning" : "Continue"} <span aria-hidden="true">↗</span></button>
   </article>;
 }

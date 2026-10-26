@@ -20,20 +20,130 @@ const record = (id: string, at = new Date("2026-01-01T00:00:00.000Z")) => newCom
 const item = (id: string): LibraryItem => ({ id: libraryItemId(lesson(id)), title: `Topic ${id}`, subject: "Physics", sourceType: "video", commitment: record(id) });
 
 describe("personal learning library", () => {
-  it("migrates a valid legacy record once and retains its original bytes", () => {
+  it("migrates a valid legacy record and removes its YouTube metadata and legacy copy", () => {
     const storage = new MemoryStorage();
     const old = record("dQw4w9WgXcQ");
-    const raw = JSON.stringify(old);
-    storage.setItem(COMMITMENT_KEY, raw);
+    storage.setItem(COMMITMENT_KEY, JSON.stringify(old));
     const repository = new LibraryRepository(() => storage);
     const loaded = repository.load();
     expect(loaded.status).toBe("valid");
     if (loaded.status !== "valid") return;
     expect(loaded.state.items).toHaveLength(1);
-    expect(loaded.state.items[0]).toMatchObject({ id: "video:dQw4w9WgXcQ", title: old.lesson.title, subject: "Uncategorized", commitment: old });
+    expect(loaded.state.items[0]).toMatchObject({ id: "video:dQw4w9WgXcQ", title: old.objective, subject: "Uncategorized", commitment: { objective: old.objective, lesson: { videoId: old.lesson.videoId } } });
+    expect(loaded.state.items[0].commitment.lesson).not.toHaveProperty("title");
     expect(loaded.state.selectedItemId).toBe("video:dQw4w9WgXcQ");
-    expect(storage.getItem(COMMITMENT_KEY)).toBe(raw);
+    expect(storage.getItem(COMMITMENT_KEY)).toBeNull();
+    expect(storage.getItem(LIBRARY_KEY)).not.toContain("Lesson dQw4w9WgXcQ");
     expect(new LibraryRepository(() => storage).load()).toMatchObject({ status: "valid", state: loaded.state });
+  });
+
+  it("removes previously persisted player title, playlist order, and index during library load", () => {
+    const storage = new MemoryStorage();
+    const saved = item("dQw4w9WgXcQ");
+    saved.sourceType = "playlist";
+    saved.id = "playlist:PL1234567890";
+    saved.commitment.lesson = {
+      ...saved.commitment.lesson,
+      playlistId: "PL1234567890",
+      canonicalUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ&list=PL1234567890",
+      playlistVideoIds: ["dQw4w9WgXcQ", "M7lc1UVf-VE"],
+      playlistIndex: 0,
+      title: "Returned title",
+    };
+    const legacyState = {
+      schemaVersion: 1,
+      revision: 4,
+      selectedItemId: saved.id,
+      items: [saved],
+      activity: [],
+    };
+    storage.setItem(LIBRARY_KEY, JSON.stringify(legacyState));
+
+    const loaded = new LibraryRepository(() => storage).load();
+    expect(loaded.status).toBe("valid");
+    const persisted = storage.getItem(LIBRARY_KEY)!;
+    expect(persisted).not.toContain("Returned title");
+    expect(persisted).not.toContain("playlistVideoIds");
+    expect(persisted).not.toContain("playlistIndex");
+  });
+
+  it("retains a playlist resource and learner data while expiring its player-selected video ID", () => {
+    const storage = new MemoryStorage();
+    const saved = item("M7lc1UVf-VE");
+    saved.sourceType = "playlist";
+    saved.id = "playlist:PL1234567890";
+    saved.title = "Learner's resource";
+    saved.subject = "Physics";
+    saved.commitment = {
+      ...saved.commitment,
+      objective: "Study the selected lesson",
+      goalMinutes: 45,
+      lastConfirmedPositionMs: 15_000,
+      checkpointRecordedAt: new Date(Date.now() - 31 * 24 * 60 * 60 * 1000).toISOString(),
+      lesson: {
+        videoId: "M7lc1UVf-VE",
+        playlistId: "PL1234567890",
+        canonicalUrl: "https://www.youtube.com/playlist?list=PL1234567890",
+      },
+    };
+    storage.setItem(LIBRARY_KEY, JSON.stringify({
+      schemaVersion: 1,
+      revision: 1,
+      selectedItemId: saved.id,
+      items: [saved],
+      activity: [],
+    }));
+
+    const loaded = new LibraryRepository(() => storage).load();
+    expect(loaded.status).toBe("valid");
+    if (loaded.status !== "valid") return;
+    expect(loaded.state.items).toHaveLength(1);
+    expect(loaded.state.items[0]).toMatchObject({
+      title: "Learner's resource",
+      subject: "Physics",
+      commitment: {
+        objective: "Study the selected lesson",
+        goalMinutes: 45,
+        lesson: {
+          playlistId: "PL1234567890",
+          canonicalUrl: "https://www.youtube.com/playlist?list=PL1234567890",
+        },
+        lastConfirmedPositionMs: 0,
+      },
+    });
+    expect(loaded.state.items[0].commitment.lesson).not.toHaveProperty("videoId");
+    expect(loaded.state.items[0].commitment).not.toHaveProperty("checkpointRecordedAt");
+  });
+
+  it("preserves a video ID explicitly parsed from the learner's playlist URL", () => {
+    const storage = new MemoryStorage();
+    const saved = item("M7lc1UVf-VE");
+    saved.sourceType = "playlist";
+    saved.id = "playlist:PL1234567890";
+    saved.commitment = {
+      ...saved.commitment,
+      sourceVideoId: "dQw4w9WgXcQ",
+      checkpointRecordedAt: new Date(Date.now() - 31 * 24 * 60 * 60 * 1000).toISOString(),
+      lesson: {
+        videoId: "M7lc1UVf-VE",
+        playlistId: "PL1234567890",
+        canonicalUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ&list=PL1234567890",
+      },
+    };
+    storage.setItem(LIBRARY_KEY, JSON.stringify({
+      schemaVersion: 1,
+      revision: 1,
+      selectedItemId: saved.id,
+      items: [saved],
+      activity: [],
+    }));
+
+    const loaded = new LibraryRepository(() => storage).load();
+    expect(loaded.status).toBe("valid");
+    if (loaded.status !== "valid") return;
+    expect(loaded.state.items[0].commitment.sourceVideoId).toBe("dQw4w9WgXcQ");
+    expect(loaded.state.items[0].commitment.lesson.videoId).toBe("dQw4w9WgXcQ");
+    expect(loaded.state.items[0].commitment.lastConfirmedPositionMs).toBe(0);
   });
 
   it("stores multiple resources and keeps progress isolated per item", () => {

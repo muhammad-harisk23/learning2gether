@@ -4,7 +4,7 @@ import { DEFAULT_FOCUS_VESSEL } from "../../src/domain/focusVessel";
 import { parseStoredCommitment } from "../../src/services/persistence/commitmentCodec";
 import { COMMITMENT_KEY, CommitmentRepository } from "../../src/services/persistence/commitmentRepository";
 
-const record = () => newCommitment({ videoId: "dQw4w9WgXcQ", canonicalUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ" }, "Understand the lesson", 25, new Date("2026-01-01T00:00:00Z"));
+const record = () => newCommitment({ videoId: "dQw4w9WgXcQ", canonicalUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ" }, "Understand the lesson", 25);
 
 class MemoryStorage implements Storage {
   private entries = new Map<string, string>();
@@ -23,6 +23,79 @@ describe("versioned local commitment", () => {
     const { vesselStyle: _omitted, ...legacy } = current;
     expect(parseStoredCommitment(JSON.stringify(legacy))).toEqual({ status: "valid", record: legacy });
     expect(parseStoredCommitment(JSON.stringify({ ...current, vesselStyle: "unknown" })).status).toBe("corrupt");
+  });
+  it("expires a stale playback checkpoint without expiring learner-provided resource data", () => {
+    const original = record();
+    const now = Date.now();
+    const stale = {
+      ...original,
+      objective: "Review the learner's chosen topic",
+      goalMinutes: 45,
+      lastConfirmedPositionMs: 12_000,
+      checkpointRecordedAt: new Date(now - 31 * 24 * 60 * 60 * 1000).toISOString(),
+      lesson: {
+        videoId: "M7lc1UVf-VE",
+        playlistId: "PL1234567890ABCDEF",
+        canonicalUrl: "https://www.youtube.com/playlist?list=PL1234567890ABCDEF",
+      },
+    };
+
+    const parsed = parseStoredCommitment(JSON.stringify(stale));
+    expect(parsed.status).toBe("valid");
+    if (parsed.status !== "valid") return;
+    expect(parsed.record).toMatchObject({
+      objective: "Review the learner's chosen topic",
+      goalMinutes: 45,
+      lesson: {
+        playlistId: "PL1234567890ABCDEF",
+        canonicalUrl: "https://www.youtube.com/playlist?list=PL1234567890ABCDEF",
+      },
+      lastConfirmedPositionMs: 0,
+    });
+    expect(parsed.record.lesson).not.toHaveProperty("videoId");
+    expect(parsed.record).not.toHaveProperty("checkpointRecordedAt");
+  });
+  it("retains a video ID in the learner-supplied URL after its checkpoint expires", () => {
+    const original = record();
+    const stale = {
+      ...original,
+      lastConfirmedPositionMs: 12_000,
+      checkpointRecordedAt: new Date(Date.now() - 31 * 24 * 60 * 60 * 1000).toISOString(),
+    };
+
+    const parsed = parseStoredCommitment(JSON.stringify(stale));
+    expect(parsed.status).toBe("valid");
+    if (parsed.status !== "valid") return;
+    expect(parsed.record.lesson.videoId).toBe("dQw4w9WgXcQ");
+    expect(parsed.record.lastConfirmedPositionMs).toBe(0);
+    expect(parsed.record).not.toHaveProperty("checkpointRecordedAt");
+  });
+  it("retains a fresh player checkpoint", () => {
+    const original = record();
+    const current = {
+      ...original,
+      lastConfirmedPositionMs: 12_000,
+      checkpointRecordedAt: new Date().toISOString(),
+    };
+
+    expect(parseStoredCommitment(JSON.stringify(current))).toMatchObject({
+      status: "valid",
+      record: { lastConfirmedPositionMs: 12_000, checkpointRecordedAt: current.checkpointRecordedAt },
+    });
+  });
+  it("discards an invalid checkpoint timestamp without invalidating the resource", () => {
+    const current = {
+      ...record(),
+      lastConfirmedPositionMs: 12_000,
+      checkpointRecordedAt: "not-a-timestamp",
+    };
+
+    const parsed = parseStoredCommitment(JSON.stringify(current));
+    expect(parsed.status).toBe("valid");
+    if (parsed.status !== "valid") return;
+    expect(parsed.record.lesson.videoId).toBe("dQw4w9WgXcQ");
+    expect(parsed.record.lastConfirmedPositionMs).toBe(0);
+    expect(parsed.record).not.toHaveProperty("checkpointRecordedAt");
   });
   it("confirms each supported vessel through the existing validated write path", () => {
     const storage = new MemoryStorage();
@@ -73,13 +146,14 @@ describe("versioned local commitment", () => {
   });
   it("reports unverified when a returned write cannot be read back", () => {
     const storage = new MemoryStorage();
+    const saved = record();
     const originalGet = storage.getItem.bind(storage);
     let reads = 0;
     storage.getItem = (key) => { reads++; if (reads >= 3) throw new Error("blocked"); return originalGet(key); };
     const repository = new CommitmentRepository(() => storage);
     repository.load();
-    expect(repository.save(record()).status).toBe("unverified");
+    expect(repository.save(saved).status).toBe("unverified");
     expect(repository.getLastConfirmed()).toBeNull();
-    expect(originalGet(COMMITMENT_KEY)).toBe(JSON.stringify(record()));
+    expect(originalGet(COMMITMENT_KEY)).toBe(JSON.stringify(saved));
   });
 });

@@ -20,7 +20,7 @@ function decodeItem(value: unknown): LibraryItem | null {
       (value.lastStudiedAt !== undefined && (typeof value.lastStudiedAt !== "string" || !Number.isFinite(Date.parse(value.lastStudiedAt))))) return null;
   const commitment = decodeCommitment(value.commitment);
   if (!commitment || (value.sourceType === "playlist") !== !!commitment.lesson.playlistId) return null;
-  return value as unknown as LibraryItem;
+  return { ...value, commitment } as unknown as LibraryItem;
 }
 
 export function decodeLibrary(value: unknown): LibraryStateV1 | null {
@@ -43,7 +43,7 @@ export function decodeLibrary(value: unknown): LibraryStateV1 | null {
         typeof bucket.eligibleMs !== "number" || !Number.isSafeInteger(bucket.eligibleMs) || bucket.eligibleMs < 0) return null;
     dates.add(bucket.localDate);
   }
-  return value as unknown as LibraryStateV1;
+  return { ...value, items: itemList } as unknown as LibraryStateV1;
 }
 
 export function parseStoredLibrary(raw: string):

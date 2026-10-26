@@ -1,4 +1,8 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page } from "./fixtures";
+
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("k12learn2gether.policy-consent.v1", "accepted"));
+});
 
 const libraryKey = "k12learn2gether.library.v1";
 
@@ -93,7 +97,7 @@ test("empty library can add multiple resources, reopen one, and retain independe
   await expect(page.locator(".library-card")).toHaveCount(2);
 });
 
-test("a valid legacy commitment migrates once and keeps the original record", async ({ page }) => {
+test("a valid legacy commitment migrates and clears its legacy copy", async ({ page }) => {
   const legacy = {
     schemaVersion: 1,
     revision: 7,
@@ -112,15 +116,16 @@ test("a valid legacy commitment migrates once and keeps the original record", as
   await page.addInitScript((raw) => localStorage.setItem("k12learn2gether.commitment", raw), legacyRaw);
   await page.goto("/");
   await page.getByRole("link", { name: "My Learning" }).click();
-  await expect(page.locator(".library-card")).toContainText("Saved title");
+  await expect(page.locator(".library-card")).toContainText("Understand the saved example");
   const migrated = await page.evaluate((key) => JSON.parse(localStorage.getItem(key)!), libraryKey);
   expect(migrated.items).toHaveLength(1);
   expect(migrated.items[0]).toMatchObject({
     id: "video:dQw4w9WgXcQ",
     subject: "Uncategorized",
-    commitment: { revision: 7, vesselStyle: "mug", cumulativeRecordedFocusedMs: 90_000, lastConfirmedPositionMs: 12_000 },
+    commitment: { revision: 7, vesselStyle: "mug", cumulativeRecordedFocusedMs: 90_000, lastConfirmedPositionMs: 0 },
   });
-  expect(await page.evaluate(() => localStorage.getItem("k12learn2gether.commitment"))).toBe(legacyRaw);
+  expect(migrated.items[0].commitment).not.toHaveProperty("checkpointRecordedAt");
+  expect(await page.evaluate(() => localStorage.getItem("k12learn2gether.commitment"))).toBeNull();
   await page.reload();
   expect(await page.evaluate((key) => JSON.parse(localStorage.getItem(key)!).items.length, libraryKey)).toBe(1);
 });
@@ -139,6 +144,7 @@ test("dashboard and workspace share truthful progress cards and preserve vessel 
     } });
   });
   await page.addInitScript((key) => {
+    if (window.top !== window) return;
     const today = new Date();
     const localDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
     localStorage.setItem(key, JSON.stringify({
@@ -159,6 +165,7 @@ test("dashboard and workspace share truthful progress cards and preserve vessel 
           goalMinutes: 10,
           vesselStyle: "mug",
           lastConfirmedPositionMs: 72_000,
+          checkpointRecordedAt: new Date().toISOString(),
           cumulativeRecordedFocusedMs: 15 * 60_000,
           lessonStatus: "unfinished",
           sessionStatus: "finished",

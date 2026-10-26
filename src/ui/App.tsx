@@ -8,6 +8,7 @@ import { selectShareProgress } from "../domain/shareProgress";
 import { LibraryRepository, type LibraryLoadResult, type LibraryWriteResult } from "../services/persistence/libraryRepository";
 import { FocusController } from "../services/focus/focusController";
 import { BrowserFocusSignalSource, type FocusState } from "../services/focus/focusSignals";
+import { preflightYouTubeResource, YOUTUBE_ELIGIBILITY_BLOCKED_MESSAGE } from "../services/youtube/compliance";
 import { PlayerAdapter, type CandidateResult, type CurrentVideo, type PlayerState } from "../services/youtube/playerAdapter";
 import { FocusCup, formatActivity } from "./FocusCup";
 import { LearningDashboard } from "./LearningDashboard";
@@ -20,6 +21,11 @@ type StudyExitDestination = "home" | "learning" | "privacy";
 type SetupValues = { url: string; title: string; subject: string; objective: string; goal: string };
 type PendingLesson = { lesson: YouTubeLesson; title: string; subject: string; objective: string; goalMinutes: number };
 const emptySetup: SetupValues = { url: "", title: "", subject: "", objective: "", goal: "25" };
+const POLICY_CONSENT_KEY = "k12learn2gether.policy-consent.v1";
+
+function readPolicyAcceptance(): boolean {
+  try { return window.localStorage.getItem(POLICY_CONSENT_KEY) === "accepted"; } catch { return false; }
+}
 
 export function App() {
   const repository = useRef(new LibraryRepository()).current;
@@ -41,6 +47,7 @@ export function App() {
   const [pending, setPending] = useState<PendingLesson | null>(null);
   const [storageWarning, setStorageWarning] = useState("");
   const [theme, setTheme] = useState<ThemePreference>(() => readThemePreference());
+  const [policyAccepted, setPolicyAccepted] = useState(readPolicyAcceptance);
 
   useEffect(() => { applyThemePreference(theme); }, [theme]);
 
@@ -97,7 +104,10 @@ export function App() {
   }
 
   function onCandidateAccepted(candidate: PendingLesson, lesson: Extract<CandidateResult, { status: "accepted" }>["lesson"]): CommitmentRecordV1 | null {
-    const next = newCommitment(lesson, candidate.objective, candidate.goalMinutes);
+    const next = {
+      ...newCommitment(lesson, candidate.objective, candidate.goalMinutes),
+      ...(candidate.lesson.videoId ? { sourceVideoId: candidate.lesson.videoId } : {}),
+    };
     const item: LibraryItem = {
       id: libraryItemId(lesson),
       title: candidate.title,
@@ -117,7 +127,7 @@ export function App() {
       setLibrary(result.state);
       setActiveItemId(item.id);
       setPending(null);
-      return next;
+      return result.item?.commitment ?? null;
     }
     setStorageWarning(result.status === "unverified" ? "Saved state is unverified. Reload to reconcile storage before studying." :
       result.status === "stale" ? "Another tab changed this lesson. Reload to see the latest saved record." : "The lesson could not be saved. Check browser storage and retry.");
@@ -137,7 +147,9 @@ export function App() {
     };
     const result = repository.updateCommitment(itemId, next);
     handleLibraryWrite(result, setLibrary, libraryRef, setStorageWarning);
-    return result.status === "saved" ? { status: result.status, record: next } : { status: result.status === "duplicate" ? "not-saved" : result.status };
+    const savedRecord = result.status === "saved" ? result.state.items.find((item) => item.id === itemId)?.commitment : undefined;
+    if (result.status === "saved") return savedRecord ? { status: "saved" as const, record: savedRecord } : { status: "not-saved" as const };
+    return { status: result.status === "duplicate" ? "not-saved" as const : result.status };
   }
 
   function openItem(item: LibraryItem): void {
@@ -179,6 +191,11 @@ export function App() {
     return saveThemePreference(nextTheme);
   }
 
+  function acceptPolicies(): void {
+    try { window.localStorage.setItem(POLICY_CONSENT_KEY, "accepted"); } catch { /* Current visit can continue; the agreement is requested again after reload. */ }
+    setPolicyAccepted(true);
+  }
+
   const workspaceItemId = pending
     ? pending.lesson.playlistId ? `playlist:${pending.lesson.playlistId}` : pending.lesson.videoId ? `video:${pending.lesson.videoId}` : null
     : activeItemId;
@@ -189,13 +206,14 @@ export function App() {
     {storageWarning && <div className="storage-warning" role="alert">{storageWarning}</div>}
 
     <main className={page === "study" ? "study-app-main" : undefined}>
-      {page === "landing" && <Landing record={continueItem?.commitment ?? null} onStart={() => goToSetup("landing")} onContinue={() => continueItem && openItem(continueItem)} onMyLearning={() => navigateTo("learning")} />}
-      {page === "add" && <Setup values={setupValues} onChange={setSetupValues} error={setupError} onError={setSetupError} onBack={() => setPage(setupOrigin.current)} onStart={startCandidate} />}
-      {page === "study" && workspaceItemId && <StudyWorkspace key={workspaceItemId} library={library} candidate={pending} item={pending ? null : activeItem} record={pending ? null : record} storageWarning={storageWarning} navigationRef={studyNavigation} onUpdate={(patch) => onUpdate(workspaceItemId, patch)} onCandidateAccepted={onCandidateAccepted} onCandidateError={(message) => { setSetupError(message); setPending(null); setPage("add"); }} onExit={(destination) => { setPending(null); setPage(destination === "home" ? "landing" : destination); }} />}
-      {page === "learning" && library && library.items.length > 0 && <LearningDashboard library={library} onAdd={() => goToSetup("learning")} onOpen={openItem} onVesselStyleChange={(item, vesselStyle) => { onUpdate(item.id, { vesselStyle }); }} />}
-      {page === "learning" && (!library || library.items.length === 0) && <EmptyLearning onStart={() => goToSetup("learning")} />}
-      {page === "privacy" && <PrivacyDataPage origin={window.location.origin} />}
-      {page === "recovery" && <section className="recovery section-pad"><p className="eyebrow">LOCAL SAVE NEEDS ATTENTION</p><h1>We couldn’t safely read your saved lesson.</h1><p>Your browser’s saved data may be unavailable or in a format this version cannot read. This page will not overwrite it. Check that site storage is available, then reload. If you changed the host or port, return to the original address.</p><button className="button button-ink" onClick={() => window.location.reload()}>Retry loading</button></section>}
+      {!policyAccepted && page !== "privacy" && <PolicyConsent onReadPolicy={() => setPage("privacy")} onAccept={acceptPolicies} />}
+      {(policyAccepted || page === "privacy") && page === "landing" && <Landing record={continueItem?.commitment ?? null} onStart={() => goToSetup("landing")} onContinue={() => continueItem && openItem(continueItem)} onMyLearning={() => navigateTo("learning")} />}
+      {(policyAccepted || page === "privacy") && page === "add" && <Setup values={setupValues} onChange={setSetupValues} error={setupError} onError={setSetupError} onBack={() => setPage(setupOrigin.current)} onStart={startCandidate} />}
+      {(policyAccepted || page === "privacy") && page === "study" && workspaceItemId && <StudyWorkspace key={workspaceItemId} library={library} candidate={pending} item={pending ? null : activeItem} record={pending ? null : record} storageWarning={storageWarning} navigationRef={studyNavigation} onUpdate={(patch) => onUpdate(workspaceItemId, patch)} onCandidateAccepted={onCandidateAccepted} onCandidateError={(message) => { setSetupError(message); setPending(null); setPage("add"); }} onExit={(destination) => { setPending(null); setPage(destination === "home" ? "landing" : destination); }} />}
+      {(policyAccepted || page === "privacy") && page === "learning" && library && library.items.length > 0 && <LearningDashboard library={library} onAdd={() => goToSetup("learning")} onOpen={openItem} onVesselStyleChange={(item, vesselStyle) => { onUpdate(item.id, { vesselStyle }); }} />}
+      {(policyAccepted || page === "privacy") && page === "learning" && (!library || library.items.length === 0) && <EmptyLearning onStart={() => goToSetup("learning")} />}
+      {page === "privacy" && <PrivacyDataPage origin={window.location.origin} showAccept={!policyAccepted} onBack={() => setPage("landing")} onAccept={() => { acceptPolicies(); setPage("landing"); }} />}
+      {(policyAccepted || page === "privacy") && page === "recovery" && <section className="recovery section-pad"><p className="eyebrow">LOCAL SAVE NEEDS ATTENTION</p><h1>We couldn’t safely read your saved lesson.</h1><p>Your browser’s saved data may be unavailable or in a format this version cannot read. This page will not overwrite it. Check that site storage is available, then reload. If you changed the host or port, return to the original address.</p><button className="button button-ink" onClick={() => window.location.reload()}>Retry loading</button></section>}
     </main>
     {page !== "study" && <footer className="site-footer"><span>K12Learn2Gether</span><span>One lesson. One goal. Your pace.</span></footer>}
   </div>;
@@ -376,18 +394,31 @@ function EmptyLearning({ onStart }: { onStart: () => void }) {
   return <section id="my-learning" className="learning-page section-pad empty-learning"><p className="eyebrow">YOUR PERSONAL LEARNING LIBRARY</p><h1>My <em>Learning.</em></h1><p>Your library is empty. Save the lessons and playlists you already trust. Choose once, then come back here instead of searching again.</p><button className="button button-ink" onClick={onStart}>Add your first lesson <span aria-hidden="true">↗</span></button></section>;
 }
 
-function PrivacyDataPage({ origin }: { origin: string }) {
+function PolicyConsent({ onReadPolicy, onAccept }: { onReadPolicy: () => void; onAccept: () => void }) {
+  return <section className="policy-consent section-pad" aria-labelledby="policy-consent-title">
+    <p className="eyebrow">BEFORE YOU CONTINUE</p><h1 id="policy-consent-title">A clear start.</h1>
+    <p>K12Learn2Gether uses YouTube's embedded player. Review the Privacy &amp; Data page and YouTube Terms before using the app. By continuing, you agree to the K12Learn2Gether privacy policy and to be bound by YouTube's Terms of Service.</p>
+    <div className="policy-consent-actions"><button className="button button-outline" onClick={onReadPolicy}>Review Privacy &amp; Data</button><button className="button button-ink" onClick={onAccept}>Agree and continue</button></div>
+    <p className="field-help"><a href="https://www.youtube.com/t/terms" target="_blank" rel="noopener">YouTube Terms of Service</a> · <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google Privacy Policy</a></p>
+  </section>;
+}
+
+function PrivacyDataPage({ origin, showAccept, onBack, onAccept }: { origin: string; showAccept: boolean; onBack: () => void; onAccept: () => void }) {
   return <section id="privacy-data" className="privacy-page section-pad">
     <p className="eyebrow">YOUR DATA, PLAINLY EXPLAINED</p><h1>Privacy <em>&amp; Data.</em></h1>
     <p className="privacy-lede">Your learning library and eligible activity history stay in this browser. There is no account or app server for syncing your progress.</p>
     <div className="privacy-list">
-      <article><h2>What this browser stores</h2><p>The library can include your resource names and subjects, YouTube video and playlist IDs, current playlist item and available title, learning objective, focus-time goal, Focus Cup style, last confirmed playback position, completion choice, and recorded focused activity. A bounded daily ledger starts when Library V1 records eligible activity; earlier cumulative focus has no recoverable date.</p><p>The library uses browser local storage under <code>k12learn2gether.library.v1</code> for <code>{origin}</code>. Existing commitment data is retained after migration.</p></article>
+      <article><h2>What this browser stores</h2><p>Learner-provided/application data includes the canonical YouTube URL and video or playlist identifiers parsed from it, the resource name, subject, learning objective, focus goal, completion choice, and vessel preference. These remain part of the learner's library and are not automatically expired merely because they refer to YouTube.</p><p>YouTube API-derived data includes Made For Kids eligibility returned by the Data API, playlist items returned by the Data or IFrame API, YouTube-returned titles, and playback position returned by the IFrame API. Eligibility and playlist results are checked for each open and are not cached in the library. Player-returned titles and playlist order are not retained. A playback checkpoint is timestamped and discarded after 30 days; its resource remains, and after successful eligibility revalidation the player starts from the beginning. A current playlist video ID returned by the player is also discarded with its stale checkpoint unless the learner's supplied URL itself contains that video ID. The selected learner-provided URL, name, subject, objective, goal, completion choice, and vessel preference remain.</p><p>The library also stores eligible app-recorded focus totals and dated activity buckets. A bounded daily ledger starts when Library V1 records eligible activity; earlier cumulative focus has no recoverable date. A local agreement flag records acceptance of this page and YouTube's terms. The library uses browser local storage under <code>k12learn2gether.library.v1</code> for <code>{origin}</code>; the agreement flag uses <code>{POLICY_CONSENT_KEY}</code>.</p></article>
       <article><h2>Where it stays</h2><p>Local storage belongs to this browser profile and exact site origin. A different browser profile, device, hostname, or port has a separate library; this app does not sync it between them. Anyone with access to this browser profile may be able to view this saved information.</p></article>
-      <article><h2>When you use YouTube</h2><p>Starting a lesson loads the YouTube IFrame API and an embedded YouTube player. YouTube/Google may receive requests and handle data under their own services and policies. This app does not control the embedded player's separate network behavior.</p></article>
-      <article><h2>Other app connections</h2><p>The current application code has no app backend, account system, analytics integration, or separate external search service. The verified third-party integration is YouTube's IFrame API and embedded player. Your browser and the site host still handle the requests needed to load this app.</p></article>
-      <article><h2>Clear this browser's saved progress</h2><p>Use your browser's site-data controls to remove stored data for this exact address: <code>{origin}</code>. Browser menu names vary. Clearing site data can remove the library and its progress; there is no in-app delete control in this proof of concept.</p></article>
+      <article><h2>When you use YouTube</h2><p>Before creating an embedded player, the app uses YouTube Data API v3 to verify that every requested video, including every paginated item in a supplied playlist, has an explicit <code>status.madeForKids: false</code> result. A Made For Kids video, missing or unknown status, unresolved playlist item, missing API key, or API error blocks the player. The app does not embed or track Made For Kids or unverified videos. This preflight is not a content-quality judgment. The browser-visible <code>VITE_YOUTUBE_API_KEY</code> must be restricted in Google Cloud to YouTube Data API v3 and the appropriate HTTP referrers; configure it through deployment environment settings, never as a committed credential.</p><p>Starting an eligible lesson loads YouTube API Services and an embedded YouTube player. The player sends data to YouTube/Google when it loads and during playback. YouTube may use cookies or similar technologies and may serve content including advertisements. The app has no YouTube account authorization, analytics, or server-side sharing. The embedded player is operated by YouTube and its data handling is covered by the <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google Privacy Policy</a>.</p></article>
+      <article><h2>Recorded focus</h2><p>K12Learn2Gether recorded focus is an app-owned study-session metric. It is not a YouTube metric and does not measure YouTube engagement, verified attention, comprehension, or mastery.</p><p>YouTube's current policies restrict certain independently calculated metrics based on API data. Whether this app-owned metric, which uses player state and timing signals, is covered by those restrictions is ambiguous and requires human policy review. This disclosure does not resolve that question.</p></article>
+      <article><h2>Progress cards you choose to share</h2><p>Download or share creates a PNG from locally saved activity totals, goal progress, streak, completion count, and vessel style. The subject and learner-given resource name are optional. The app does not upload the card; when you choose native sharing, the browser passes the PNG and a short message to the sharing destination you select. The recipient and destination then handle the image.</p></article>
+      <article><h2>Other app connections</h2><p>The current application code has no app backend, account system, analytics integration, or separate external search service. Its YouTube integrations are the Data API eligibility preflight and the IFrame API embedded player. Your browser and the site host still handle the requests needed to load this app.</p></article>
+      <article><h2>Clear this browser's saved progress</h2><p>Use your browser's site-data controls to remove stored data for this exact address: <code>{origin}</code>. Browser menu names vary. This removes the app's local library only; it does not delete data held by YouTube. There is no in-app delete control in this proof of concept.</p></article>
+      <article><h2>YouTube terms</h2><p>YouTube playback and use of YouTube API Services are subject to <a href="https://www.youtube.com/t/terms" target="_blank" rel="noopener">YouTube's Terms of Service</a>. By using this API Client, you agree to be bound by YouTube's Terms of Service.</p></article>
     </div>
-    <p className="privacy-note">This page describes the current proof of concept, not a formal legal privacy policy. Legal review is needed before public commercial use.</p>
+    <p className="privacy-note">This privacy policy describes this proof of concept's current data practices. YouTube/Google independently operate the embedded player. The API Client's child-directed classification under applicable law requires owner/legal assessment; serving students alone does not determine that classification. Applicable child privacy and other legal requirements still need assessment before public use.</p>
+    {showAccept && <div className="policy-consent-actions"><button className="button button-outline" onClick={onBack}>Back to agreement</button><button className="button button-ink" onClick={onAccept}>Agree and continue</button></div>}
   </section>;
 }
 function Setup({ values, onChange, error, onError, onBack, onStart }: { values: SetupValues; onChange: (value: SetupValues) => void; error: string; onError: (value: string) => void; onBack: () => void; onStart: (value: PendingLesson) => void }) {
@@ -495,7 +526,7 @@ function StudyWorkspace({ library, item, candidate, record, storageWarning, navi
     const position = adapter.current?.getPositionMs();
     const patch: CommitmentPatch = {
       cumulativeRecordedFocusedMs: current.cumulativeRecordedFocusedMs + pendingMs.current,
-      ...(position !== null && position !== undefined ? { lastConfirmedPositionMs: position } : {}),
+      ...(position !== null && position !== undefined ? { lastConfirmedPositionMs: position, checkpointRecordedAt: new Date().toISOString() } : {}),
       ...(interrupted.current ? { sessionStatus: "interrupted" as const } : {}),
     };
     const positionChanged = position !== null && position !== undefined && position !== current.lastConfirmedPositionMs;
@@ -513,16 +544,11 @@ function StudyWorkspace({ library, item, candidate, record, storageWarning, navi
     setCurrentTitle(video.title ?? "");
     if (video.playlistVideoIds) setPlaylistItems(video.playlistVideoIds);
     const current = localRecord.current;
-    if (!current || current.lesson.videoId === video.videoId && current.lesson.playlistIndex === video.playlistIndex && current.lesson.title === video.title) return;
-    const playlistId = current.lesson.playlistId;
+    if (!current || current.lesson.videoId === video.videoId) return;
     savePatch({ lesson: {
       ...current.lesson,
       videoId: video.videoId,
-      canonicalUrl: `https://www.youtube.com/watch?v=${video.videoId}${playlistId ? `&list=${playlistId}` : ""}`,
-      ...(video.playlistIndex !== undefined ? { playlistIndex: video.playlistIndex } : {}),
-      ...(video.playlistVideoIds ? { playlistVideoIds: video.playlistVideoIds } : {}),
-      ...(video.title ? { title: video.title } : {}),
-    }, lastConfirmedPositionMs: 0 });
+    }, lastConfirmedPositionMs: 0, checkpointRecordedAt: new Date().toISOString() });
   }
 
   useEffect(() => {
@@ -579,7 +605,35 @@ function StudyWorkspace({ library, item, candidate, record, storageWarning, navi
     controller.start();
     if (storageWarning) failPersistence("stale");
 
-    void instance.cueCandidate(lesson).then((result) => {
+    const preflightLesson = record && record.checkpointRecordedAt === undefined && record.sourceVideoId
+      ? { ...lesson, videoId: record.sourceVideoId }
+      : lesson;
+    void preflightYouTubeResource(preflightLesson).then(async (preflight) => {
+      if (cancelled) return;
+      if (preflight.status !== "eligible") {
+        if (candidate) onCandidateError(YOUTUBE_ELIGIBILITY_BLOCKED_MESSAGE);
+        else {
+          setMessage(YOUTUBE_ELIGIBILITY_BLOCKED_MESSAGE);
+          setLoading(false);
+        }
+        return;
+      }
+
+      let verifiedLesson = lesson;
+      if (record && record.checkpointRecordedAt === undefined) {
+        const sourceLesson = parseYouTubeUrl(record.lesson.canonicalUrl);
+        const startVideoId = record.sourceVideoId ??
+          ((!record.lesson.playlistId && sourceLesson.ok) ? sourceLesson.lesson.videoId : undefined) ??
+          preflight.videoIds[0];
+        if (!startVideoId) {
+          setMessage(YOUTUBE_ELIGIBILITY_BLOCKED_MESSAGE);
+          setLoading(false);
+          return;
+        }
+        verifiedLesson = { ...record.lesson, videoId: startVideoId };
+      }
+
+      const result = await instance.cueCandidate(verifiedLesson);
       if (cancelled) return;
       if (result.status !== "accepted") {
         if (candidate) onCandidateError(result.message);
@@ -597,8 +651,7 @@ function StudyWorkspace({ library, item, candidate, record, storageWarning, navi
         controller.setSessionActive(true);
         if (instance.getState() !== "playing") instance.play();
       } else {
-        localRecord.current = record;
-        if (record?.lastConfirmedPositionMs) instance.seekTo(record.lastConfirmedPositionMs);
+        if (record?.checkpointRecordedAt && record.lastConfirmedPositionMs) instance.seekTo(record.lastConfirmedPositionMs);
         if (result.lesson.playlistVideoIds) setPlaylistItems(result.lesson.playlistVideoIds);
         setCurrentVideoId(result.lesson.videoId);
         setCurrentTitle(result.lesson.title ?? "");
@@ -637,7 +690,7 @@ function StudyWorkspace({ library, item, candidate, record, storageWarning, navi
     adapter.current?.pause();
     focus.current?.setSessionActive(false);
     const position = adapter.current?.getPositionMs();
-    savePatch({ sessionStatus: "finished", ...(position !== null && position !== undefined ? { lastConfirmedPositionMs: position } : {}) });
+    savePatch({ sessionStatus: "finished", ...(position !== null && position !== undefined ? { lastConfirmedPositionMs: position, checkpointRecordedAt: new Date().toISOString() } : {}) });
     setNeedsResume(true);
     setMessage("Session finished. Your lesson remains unfinished and is saved in My Learning.");
   }
@@ -648,7 +701,7 @@ function StudyWorkspace({ library, item, candidate, record, storageWarning, navi
     adapter.current?.pause();
     focus.current?.setSessionActive(false);
     const position = adapter.current?.getPositionMs();
-    if (savePatch({ lessonStatus: "completed", sessionStatus: "finished", ...(position !== null && position !== undefined ? { lastConfirmedPositionMs: position } : {}) })) {
+    if (savePatch({ lessonStatus: "completed", sessionStatus: "finished", ...(position !== null && position !== undefined ? { lastConfirmedPositionMs: position, checkpointRecordedAt: new Date().toISOString() } : {}) })) {
       setNeedsResume(false);
       setMessage("Lesson marked complete. This is your self-reported status.");
     }
@@ -695,12 +748,12 @@ function StudyWorkspace({ library, item, candidate, record, storageWarning, navi
   const cupActivityLabel = eligible ? "Recording focus" : state === "playing" ? "Focus paused" : needsResume ? "Paused" : "Not recording";
 
   return <section className="study-page">
-    <nav className="study-nav" aria-label="Study workspace navigation"><button className="wordmark" onClick={() => leaveWorkspace("home")}><span className="back-glyph" aria-hidden="true">←</span> Back to Home</button><span className="nav-current">{currentTitle || localRecord.current?.lesson.title || "Focused study"}</span><span className="nav-state">{state.toUpperCase()}</span></nav>
+    <nav className="study-nav" aria-label="Study workspace navigation"><button className="wordmark" onClick={() => leaveWorkspace("home")}><span className="back-glyph" aria-hidden="true">←</span> Back to Home</button><span className="nav-current">{currentTitle || item?.title || candidate?.title || "Focused study"}</span><span className="nav-state">{state.toUpperCase()}</span></nav>
     <div className="study-content section-pad">
       <div className="study-grid"><div className="study-main"><div className="player-frame"><div ref={host} className="player-host" /></div>
         {loading && <p className="player-status" role="status">Checking that this YouTube lesson can load…</p>}
         {blocked && <p className="player-status" role="status">Autoplay was blocked. Press Play inside the YouTube player.</p>}
-        {message && <p className="form-error" role="status">{message}</p>}
+        {message && <p className="form-error" role={message === YOUTUBE_ELIGIBILITY_BLOCKED_MESSAGE ? "alert" : "status"}>{message}</p>}
         <p className="player-credit">Video playback provided by YouTube. Its standard controls remain available.</p>
         <div className="player-actions"><button className="button button-ink" disabled={loading || persistenceBlocked.current || localRecord.current?.lessonStatus === "completed"} onClick={resume}>Play / Resume <span aria-hidden="true">▶</span></button><button className="button button-outline" disabled={loading} onClick={() => adapter.current?.pause()}>Pause</button><button className="text-button" onClick={() => { focus.current?.recheckFocus(); }}>Recheck focus</button></div>
         {isAmbiguous && <p className="focus-notice" role="status">This browser’s iframe focus signal is ambiguous. Waiting for a fresh browser signal; the recheck button cannot override it.</p>}
@@ -708,7 +761,7 @@ function StudyWorkspace({ library, item, candidate, record, storageWarning, navi
           <div id="playlist-panel" className="playlist-panel" aria-label="Playlist videos" hidden={!playlistOpen}>{actualItems.map((videoId, index) => <button key={`${videoId}-${index}`} disabled={persistenceBlocked.current} className={videoId === currentVideoId ? "playlist-item current" : "playlist-item"} aria-current={videoId === currentVideoId ? "true" : undefined} onClick={() => adapter.current?.playVideoAt(index)}><span className="playlist-index">{String(index + 1).padStart(2, "0")}</span><span>{videoId === currentVideoId && currentTitle ? currentTitle : `Video ID ${videoId}`}</span><span aria-hidden="true">{videoId === currentVideoId ? "•" : "↗"}</span></button>)}<p className="playlist-disclosure">YouTube provides real playlist order and video IDs. The IFrame API exposes a title only for the current video, so other entries are identified by their actual IDs.</p></div>
         </div>
       </div>
-      <aside className="study-side"><p className="eyebrow">{item?.subject ?? candidate?.subject ?? "YOUR RESOURCE"}</p><h2>{item?.title ?? candidate?.title ?? record?.objective}</h2><p className="study-objective">{candidate?.objective ?? record?.objective}</p><div className="side-line"><span>Player</span><strong>{state}</strong></div><div className="timer-box"><span>RECORDED ACTIVITY · LIVE</span><strong aria-live="off">{formatActivity(totalMs)}</strong><small>{formatActivity(localRecord.current?.cumulativeRecordedFocusedMs ?? 0)} saved · {formatActivity(unsavedMs)} in this session, not yet saved</small><p>{statusText}</p></div>
+      <aside className="study-side"><p className="eyebrow">{item?.subject ?? candidate?.subject ?? "YOUR RESOURCE"}</p><h2>{item?.title ?? candidate?.title ?? record?.objective}</h2><p className="study-objective">{candidate?.objective ?? record?.objective}</p><div className="side-line"><span>Player</span><strong>{state}</strong></div><div className="timer-box"><span>RECORDED ACTIVITY · LIVE</span><strong aria-live="off">{formatActivity(totalMs)}</strong><small>{formatActivity(localRecord.current?.cumulativeRecordedFocusedMs ?? 0)} saved · {formatActivity(unsavedMs)} in this session, not yet saved</small><p>K12Learn2Gether recorded focus is an app-owned study-session metric. It is not a YouTube metric and does not measure YouTube engagement, verified attention, comprehension, or mastery.</p><p>{statusText}</p></div>
         {localRecord.current && <><FocusCup recordedMs={totalMs} goalMinutes={localRecord.current.goalMinutes} compact vesselStyle={localRecord.current.vesselStyle ?? DEFAULT_FOCUS_VESSEL} recording={eligible} activityLabel={cupActivityLabel} onVesselStyleChange={(style) => { savePatch({ vesselStyle: style }); }} /><div className="goal-row"><span>Focus-time goal</span><strong>{localRecord.current.goalMinutes} min {goalReached ? "· reached" : ""}</strong><button className="text-button" type="button" aria-label="Change focus-time goal" aria-expanded={goalEditing} aria-controls="study-goal-editor" onClick={() => goalEditing ? cancelGoalEdit() : setGoalEditing(true)}>{goalEditing ? "Cancel" : "Change"}</button></div>{goalEditing && <div className="goal-editor" id="study-goal-editor"><label htmlFor="study-goal">Change goal (5–240 min)</label><div><input id="study-goal" type="number" min={5} max={240} step={1} value={goalInput} onChange={(event) => setGoalInput(event.target.value)} /><button className="text-button" disabled={persistenceBlocked.current} onClick={updateGoal}>Save goal</button></div></div>}{focusShareData && <div className="side-line study-momentum-line"><span>Today · eligible focus</span><strong>{formatActivity(focusShareData.todayMs)} · {focusShareData.streakDays} {focusShareData.streakDays === 1 ? "day" : "day streak"}</strong></div>}{library && item && <ShareProgress library={library} resourceId={item.id} buttonLabel={goalReached ? "Share goal progress" : "Share progress"} />}</>}
         <div className="save-state" role="status">{saveState === "saved" ? "Saved locally" : saveState === "saving" ? "Saving activity…" : saveState === "not-saved" ? "Not saved; activity is in memory" : saveState === "stale" ? "Another tab has newer progress" : "Saved state is unverified"}</div>
         {localRecord.current && <details className="session-actions"><summary>Session actions</summary><div><button className="button button-outline full-width" disabled={persistenceBlocked.current} onClick={finishSession}>Finish session</button>{localRecord.current.lessonStatus !== "completed" && <button className="button button-outline full-width" disabled={persistenceBlocked.current} onClick={markComplete}>Mark lesson complete…</button>}</div></details>}

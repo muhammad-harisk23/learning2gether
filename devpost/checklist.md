@@ -92,3 +92,22 @@ Activity mode: pending
 - On 2026-10-25, final review identified that saved records bypassed the editorial Home and the study back action opened My Learning. The approved POC now keeps Home as the entry point, makes My Learning a separate destination, and provides contextual Continue Learning; the landing story follows the supplied exam-pressure/resource-switching narrative. Scope remains unchanged. Automated checks pass; final learner retry is pending.
 - On 2026-10-25, focused workspace feedback added an above-player playlist toggle, an explicit collapsed Session actions indicator, and four persisted Focus Cup vessel styles. Legacy version 1 records default to glass without a migration write; vessel changes preserve all study progress. This does not close the final learner-review checkpoint.
 - On 2026-10-25, an optional Light/Dark presentation preference was implemented under a separate validated browser-local key. The technical spec records this follow-up as draft pending learner review; scope and PRD remain unchanged.
+- Git history on 2026-10-26 records a later product iteration adding a multi-resource Personal Learning Library and updating the UI (`bab68e1`, `cab4310`, `bb2d7f7`). The final scope, PRD, and spec amendments describe this state. The repository does not record a specific learner observation as the cause, so none is attributed.
+- The current code also has dated activity summaries, a 10-minute qualifying-day streak, and data-based share cards with PNG export and native-share detection. These are represented as final implementation requirements in the amended PRD/spec; their addition is recorded as product evolution, not as part of the original plan.
+
+## Final Submission Checklist (manual)
+
+- [ ] Learner reviews the final scope, PRD, and spec amendments and decides whether they accurately represent the shipped product.
+- [ ] Learner completes final hands-on review and confirms readiness; do not check this based on automated tests.
+- [ ] Complete the learning wrap-up and show/review the reference app map; record only what actually happened above.
+- [ ] Check the public repository while logged out or in a private browser window.
+- [ ] Record a public demo under three minutes using copyright-safe video/audio; verify English audio or translation.
+- [ ] Learner confirms age-of-majority eligibility and whether any substantial project-specific work predates September 22, 2026.
+- [ ] Learner confirms rights/permissions for project code, artwork, and demo content, and checks organizer guidance on AI-assisted interview answers.
+- [ ] In Google Cloud, enable YouTube Data API v3 and create a dedicated API key restricted to that API and the intended HTTP referrers; configure `VITE_YOUTUBE_API_KEY` in the production environment without committing it.
+- [ ] Manually verify the deployed `Referrer-Policy`, a verified non-MFK video, an MFK video blocked before iframe creation, and a playlist whose preflight fails closed if any item cannot be verified. Record the actual results in `manual-browser-checks.md`.
+- [ ] Have a human reviewer assess the policy treatment of the app-owned focus metric and the required fail-closed content eligibility gate. The code and disclosure do not resolve policy interpretation.
+- [ ] Determine with owner/legal review whether the API Client is child-directed under applicable law and, if so, what YouTube notification, privacy, and other compliance requirements apply. Serving students alone does not settle the classification.
+- [ ] Learner personally writes all Devpost form answers and completes the exit survey; include the public repository in “Try it out.”
+- [ ] Verify the live URL in a private browser if one is provided; deployment is not required to run locally.
+- [ ] Submit on Devpost before the deadline. This repository checklist does not mark submission complete.

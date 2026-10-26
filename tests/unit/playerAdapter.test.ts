@@ -106,7 +106,14 @@ describe("YouTube player adapter", () => {
     fake.ready(); fake.state(YT_STATE.cued);
     expect(fake.cuePlaylist).toHaveBeenLastCalledWith({ list: "PL1234567890ABCDEF", listType: "playlist", index: 1 });
     fake.activeIndex = 1; fake.activeVideoId = "M7lc1UVf-VE"; fake.state(YT_STATE.cued);
-    expect(await candidate).toMatchObject({ status: "accepted", lesson: { videoId: "M7lc1UVf-VE", playlistIndex: 1 } });
+    expect(await candidate).toMatchObject({
+      status: "accepted",
+      lesson: {
+        videoId: "M7lc1UVf-VE",
+        playlistIndex: 1,
+        canonicalUrl: "https://www.youtube.com/watch?v=M7lc1UVf-VE&list=PL1234567890ABCDEF",
+      },
+    });
     adapter.destroy();
   });
   it("times out only after cue and cancels cleanly", async () => {

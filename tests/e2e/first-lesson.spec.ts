@@ -1,4 +1,8 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
+
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("k12learn2gether.policy-consent.v1", "accepted"));
+});
 
 test("early real YouTube embed accepts a candidate and saves it before study", async ({ page }) => {
   await page.goto("/");

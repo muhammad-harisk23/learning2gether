@@ -1,286 +1,88 @@
-﻿---
+---
 doc: prd
-status: approved
+status: draft
 ---
 
-# K12Learn2Gether — Less Searching. More Finishing.
+# K12Learn2Gether — Product Requirements
 
-A focused, solo-first learning-continuity experience for Indian secondary students using YouTube lessons from teachers they already trust.
+## Historical basis and review status
 
-Sources: `scope.md > The Unique Kernel`, `Who It's For`, `The Core Loop`, and `Why This Matters to the Learner`.
+The PRD first appears as approved in `545e795ce117b0a8e9652fa17170ba384704e8a3`. Its approved planning revisions are recorded in `197822e5be7a0fac50c85221cff3faa76d84d5cc`, `a7cb62739bf6fc2c7afc20fdca2bc035777a0545`, and `0b189a5155966ebd92366bc0596efcbff0f35765`. The latter is the last committed PRD version marked `approved`. This document keeps that learner-led product narrative as its base and labels subsequent implementation changes separately.
 
-## Target User and Primary Use Cases
+Git preserves the planning documents and their status; it is not an interview transcript. This draft adds no learner quote, testing observation, or undocumented reason for a product change. The approved scope records the learner's experience in paraphrase.
 
-The primary user is an Indian student in Classes 9–12 studying mathematics or science from a YouTube teacher they already trust. They may be approaching exams, have saved many resources, and need to follow through on one chosen lesson rather than keep comparing alternatives. The product must feel useful to this student without a friend, account, library, or recommendation feed.
+## Product problem
 
-Primary use cases are: (1) understand the product and start one lesson for the first time; (2) focus on that lesson while preserving an honest record of activity; (3) leave and later continue the same unfinished commitment; (4) change a focus goal without losing activity; (5) intentionally switch lessons with clear consequences; (6) finish one study session while keeping an unfinished lesson active; and (7) explicitly mark a lesson complete and see that state persist. Collaboration and historical archive/reactivation are not required use cases in the current POC.
+Learners often already have a useful lesson from a teacher they trust. Repeated searching and comparing, switching resources, distraction, and losing their place can make it hard to follow through. The product helps the learner continue a chosen learning thread rather than promising a better discovery feed or replacing the teacher.
 
-Source: `scope.md > Who It's For`, `The Core Loop`, and `In Scope > Required solo learning`.
+## Learner and goals
 
-## The Core Journey
+The primary learner is an Indian secondary student, especially a Classes 9–12 learner studying mathematics or science with a trusted YouTube teacher. The solo journey must be useful without a friend, account, or paid service.
 
-1. **Understand the promise.** Home always opens on the editorial page, including when a commitment is saved. It explains the resource-search cycle without blaming students or claiming everyone behaves the same way. The first viewport offers **Start with one lesson** and, when a saved commitment exists, a contextual **Continue Learning** action; **My Learning** remains a separate navigation destination.
-2. **Start without onboarding friction.** “Start with one lesson” opens a separate setup view. The student pastes one YouTube video or playlist URL, writes a short objective, and chooses a personal focus-time goal. Same-browser storage is explained concisely.
-3. **Load and enter deliberately.** “Start focused study” validates a supported video or playlist URL and waits for the selected video or playlist item to be confirmed by a video-specific IFrame API state. Invalid or unplayable candidates produce a helpful inline error and preserve entered values and any current commitment. On a successful load, the workspace opens and attempts playback once because the student explicitly asked to start. If scripted playback is blocked, the player stays paused and the student is told to press Play inside YouTube.
-4. **Study with honest feedback.** The YouTube player is the workspace's main visual element. The student sees their objective, focus goal, second-level live activity, saved/unsaved totals, remaining time to goal, Focus Cup, and current focus/playback state. A supplied playlist has an accessible control showing YouTube's actual entry count/order and permits item selection without resetting commitment activity. The IFrame API exposes ordered IDs and the current item's title, not titles for every playlist item; other entries are identified by their actual IDs. Activity accrues only from observed eligible playback while the page is visible and browser-reported focus is present.
-5. **Handle interruption safely.** On a reported tab switch, minimize, or loss of focus, pause local playback where supported and stop recording eligible activity. Explain that playback paused. Returning to the page never resumes automatically; the student chooses Resume.
-6. **End a study session, not the commitment.** “Finish session” pauses playback where supported, checkpoints the latest confirmed position and eligible activity, and may offer a short reflection. If the lesson is unfinished, it remains the active commitment and retains its cumulative activity. The focus-time goal never ends playback or marks a lesson complete.
-7. **Mark a lesson complete only by choice.** The student can separately choose **Mark Lesson Complete** in the workspace and confirm. This ends an active study session, pauses playback where supported, saves current state and eligible recorded focused activity, and marks the commitment completed as the student's self-report. Goal attainment, video end, position, and Finish session never complete the lesson. Completion does not imply understanding, mastery, or exam readiness.
-8. **Continue later or start another lesson.** When the same browser opens again, Home remains the entry point and the full product story stays available. A prominent contextual **Continue Learning** action opens the saved unfinished commitment paused at the confirmed position; **My Learning** separately opens the full saved-commitment dashboard. The saved video or playlist, selected playlist item, objective, position, goal, cumulative recorded focused activity, status, and Focus Cup remain unchanged while navigating. A completed commitment remains visibly completed in My Learning and offers **Start another lesson** without autoplay.
-9. **Change a commitment intentionally.** If the student asks to replace an unfinished lesson, explain the effect and offer Continue or Replace. Load the supported candidate while leaving the old commitment intact. If the candidate fails, preserve the old commitment and progress. In the current required scope, a successful replacement replaces the old active record after explicit confirmation; the new lesson has its own objective and goal and starts with zero recorded focused activity. Never transfer time between lessons. Persistent Previous Learning history is a proposed post-core amendment below, not a required behavior.
+The original product goals were to:
 
-Sources: `scope.md > The Core Loop`, `What "Working" Looks Like`, `In Scope > Required solo learning`, and `Success and Acceptance Criteria`.
+1. Make the problem and promise understandable on Home, then let a learner start one lesson without unnecessary onboarding.
+2. Keep one chosen lesson, objective, personal focus-time goal, playback position, and honestly recorded activity together.
+3. Stop recording when observable player/browser conditions become ineligible and never resume playback automatically after an interruption.
+4. Make continuing an unfinished lesson easier than searching for it again.
+5. Keep “Finish session” distinct from the learner's deliberate, confirmed “Mark Lesson Complete” action.
+6. Represent recorded activity honestly without implying attention, comprehension, mastery, or exam readiness.
 
-## Screens and Layout
+## Original learner decisions and requirements
 
-### 1. Home — editorial landing page
+These describe the approved one-commitment plan, not the later library:
 
-The hero leads with **“You found a good lesson. Then the distractions started.”** Supporting copy explains that K12Learn2Gether helps students stay with the teacher and lesson they chose, track eligible focused playback, and return to the same learning thread instead of repeatedly starting over. Explain the unfinished-learning cycle as a workflow problem, not a character flaw. Keep the positioning **“Less searching. More finishing.”** and the promise **“Bring what you already want to learn. We help you actually finish it.”** The hero illustration is a lightweight explanatory animation: an explicitly illustrative lesson search and choices become competing distractions, then resolve into a representation of the focused workspace. It must not claim to show live search results, real student data, or recorded activity. Under reduced-motion settings it becomes a readable static sequence. The primary **Start with one lesson** CTA opens Setup. When an unfinished commitment exists, show **Continue Learning** in the first viewport; for a completed commitment, show **My Learning**. **See how it works** moves to the explanation on the same page.
+- **One active commitment:** one supported YouTube video (a supplied playlist was later approved as one commitment), one short objective, and one personal goal. The goal is cumulative for that commitment, not a compulsory session limit.
+- **Setup and candidate loading:** accept supported YouTube URLs, objective, and goal; default to 25 minutes, offer 15/25/45-minute presets and whole-minute custom values from 5 through 240. A candidate is not committed until the player confirms it loaded without error. A failed replacement preserves the prior commitment and its progress.
+- **Focused study:** show the lesson and standard YouTube controls. Count only bounded observed intervals while playback is reported playing, the page is visible, and browser focus is confirmed. Paused, buffering, ended, hidden, confirmed-unfocused, ambiguous, errored, or stale intervals do not count.
+- **Interruption and return:** request a pause on observed hidden-page or confirmed-focus-loss signals where supported. Returning never auto-plays. Continue restores the last confirmed position paused.
+- **Finish and completion:** finishing ends only the current study period. Marking the lesson complete is separate, confirmed, and self-reported. Reaching the goal, reaching the end of a video, or finishing a session does not mark completion.
+- **Replacement:** explain the consequence and obtain an explicit choice. Failed or unavailable candidates leave the saved commitment intact; successful replacement starts with its own goal and no transferred activity.
+- **Presentation:** a calm, professional, responsive interface; accessible keyboard controls and visible validation; visible YouTube controls; motion reduced when the user requests it. The Focus Cup fill follows recorded activity relative to the goal, caps visually at 100%, and leaves the actual total visible.
 
-Below the hero, keep the requested narrative in this order:
+### Original acceptance criteria
 
-1. The unfinished-learning cycle: exam pressure builds → search for the “best” teacher or roadmap → save multiple playlists → watch one or two videos → a recommendation, Short, different teacher, or roadmap restarts the search → chosen lessons remain unfinished while time goes to switching. Use a restrained, accessible visual treatment, not fabricated data.
-2. The connected problems: Resource FOMO; distraction and fragmented tools; unfinished lessons and unclear recorded progress. Use empathetic examples as relatable situations, not statistics or universal claims.
-3. Why existing approaches may leave a continuity gap: YouTube has valuable lessons but also discovery paths away from the chosen lesson; a playlist organizes videos but does not create a personal commitment or focused-study workflow; a generic timer does not distinguish observed playback from paused or hidden periods; a blocker may restrict access without preserving lesson, goal, and progress together; separate notes, timers, playlists, and records create context switching. Describe these limits fairly and specifically; do not claim all alternatives fail.
-4. The philosophy: “Bring what you already want to learn. We help you actually finish it.” Students keep their trusted teacher and content; the app supports commitment, focus, saved progress, and continuity without promising exam results.
-5. The actual workflow: choose a trusted lesson or playlist; set an objective and customizable focus-time goal; study in the workspace; record activity only when player and browser signals meet the approved eligibility conditions; when the page is hidden, request a pause where supported and stop crediting activity; return to the saved lesson; see recorded activity and Focus Cup progress toward the goal. Explain browser-signal limitations honestly.
-6. Four current capabilities only: one lesson and goal; browser-supported focus protection; saved lesson position and recorded focused activity; Continue Learning and the factual Focus Cup.
-7. A second CTA to Setup. No signup, course discovery, fake metrics, testimonials, or planned-feature claims.
+- A first-time learner can understand the problem and reach Setup from the editorial Home. A returning learner can find the saved commitment and use Continue Learning.
+- The 25-minute default and 15/25/45-minute presets work; whole-number custom goals from 5 through 240 minutes are accepted, and invalid values or URLs produce clear outcomes.
+- A failed candidate does not replace saved progress. Playback is attempted only after a confirmed candidate and an explicit start action.
+- Activity advances only during eligible observed playback; interruption stops accrual, and return does not autoplay.
+- Reloading in the same browser restores the selected lesson, objective, goal, last confirmed position, recorded activity, and status. Continue opens paused.
+- Changing the goal preserves the activity total and recalculates the displayed ratio. Finish does not complete a lesson; only confirmed learner action records completion.
+- The app identifies browser-local persistence and its clearing/data-loss limitation. It does not claim that browser signals prove attention or learning.
+- Key workflows remain usable with a keyboard, at narrow widths, and with reduced motion enabled; player controls are not obscured.
 
-The landing page is editorial and scannable; it is not a dashboard or a gate before study. On narrow screens, the narrative becomes a single readable column, the cycle illustration remains understandable without animation, and primary CTAs remain easy to reach. No horizontal scrolling.
+## Original out-of-scope decisions
 
-The shared navigation is present on Home, Setup, My Learning, the study workspace, recovery, and Privacy & Data. It provides working Home, The problem, How it works, My Learning, and Privacy & Data destinations. Section links return to Home before scrolling when used from another view; leaving the workspace follows its existing safe checkpoint behavior. The informational Privacy & Data page describes only verified implementation behavior: the `k12learn2gether.commitment` localStorage record and its fields, browser-profile and exact-origin boundary, YouTube's third-party iframe/API requests, the absence of an app backend/accounts/analytics/separate search service in this code, and browser site-data removal. It does not add storage, deletion, sync, or legal-policy functionality. Legal review remains necessary before public commercial use.
+The approved plan did not require a multi-resource library or course path, resource recommendations/discovery, persistent archives, a required friend/room/collaboration service, accounts, backend, cross-device sync, AI tutoring, rehosting lessons, analytics, payments, ads, public rankings, rewards, or verified-attention/anti-cheating claims. A room with one guest was only an optional stretch after the solo experience; it is not shipped.
 
-### 2. Focused Setup view — first commitment or intentional replacement
+## Post-build product evolution
 
-Setup is a separate, quiet view with heading **“One lesson. One intention. One step forward.”** It contains only:
+The implementation expanded from one active commitment to a Personal Learning Library. Multiple videos or supplied playlists can be saved, and each resource retains independent metadata, goal, activity, completion, and playback checkpoint. A learner can select one resource at a time and return to it paused. This is a product expansion, not an original interview requirement.
 
-- A labeled YouTube video or playlist URL input. Watch URLs may contain both `v` and `list`; playlist-only URLs are also supported.
-- A short learning-objective input.
-- Focus-time quick choices: 15, 25, and 45 minutes; 25 minutes is selected by default.
-- A Custom duration input for whole minutes from 5 through 240 inclusive.
-- **Start focused study** and an obvious Back action.
-- Concise information that no account is needed, progress is stored in this browser, and clearing site data may remove it.
+Other code-backed additions are:
 
-The setup is a single clear task, not a wizard. URL, objective, and goal errors are shown beside the relevant input, associated with it for assistive technology, and do not clear other entered values. During loading, show a clear in-progress state and prevent duplicate submissions. When replacing an active commitment, this view is reached only after the student intentionally chooses Replace; the previous commitment remains saved until the candidate successfully loads.
+- Dated local activity buckets and day/week/month/year summaries where dates are available, alongside lifetime totals from saved resource records.
+- A streak based on local calendar days with at least 10 minutes of eligible activity.
+- Per-resource Focus Cup choices (glass, coffee cup, mug, or bottle), with capped visual fill and uncapped recorded minutes.
+- Daily Focus, Learning Recap, and conditionally available Goal Reached share cards based on saved data; resource details are optional. Export is a 1080×1350 PNG; image sharing is offered only when supported, with download available.
+- Light/dark appearance and reduced-motion/responsive presentation.
+- In the current working application, an affirmative local privacy-disclosure/YouTube-Terms gate precedes player access. This is an implementation detail, not a learner quote or evidence of legal approval.
 
-### 3. My Learning — saved commitment dashboard
+Git records the library implementation in `bab68e1b857a45cfbc0202d1c3dd5dafae69c727` and later UI work in the history. The repository does not record a specific learner observation or decision as the reason for the post-build expansion.
 
-A saved current commitment—unfinished or completed—is shown here when the student chooses **My Learning**. This destination is distinct from Home and Study Workspace. The single current commitment dominates the view, in one composed editorial layout rather than a grid of metric cards. Show:
+## Final requirements
 
-- The selected video or playlist and its YouTube attribution. For playlists, show actual count/order and the current selection; show other items by their real video IDs unless YouTube supplies their titles. The IFrame API exposes only the current video's title.
-- The personal learning objective.
-- The last confirmed playback position.
-- The chosen goal, cumulative recorded focused activity, and remaining time (never below zero).
-- The private Focus Cup, proportionally filled and capped visually at 100%, while the actual cumulative recorded focused activity remains visible even above the goal. Label this as focused activity toward this commitment's focus-time goal; it is not daily progress, lesson completion, watched-video percentage, or a comprehension score.
-- An accurate **Unfinished** or **Completed** status. Finishing a study session does not change an unfinished lesson to Completed.
-- For an unfinished lesson, one prominent **Continue Learning** action opens the study workspace paused at the saved position. For a completed lesson, show a clear **Start another lesson** action; it opens Setup but does not autoplay. The completed record remains until the new candidate successfully loads, then is replaced because history is not in scope. The new commitment starts with zero recorded focused activity; no time transfers.
-- Secondary actions to change the goal or intentionally change the lesson.
-- Same-browser storage information, visible but secondary.
+- Support multiple saved YouTube videos or supplied playlists, with one selected resource open at a time and independent per-resource progress.
+- Keep resource details and progress in validated, versioned browser-local storage for the same origin/profile. No account or cross-device synchronization is provided; clearing site data can erase data.
+- Restore a fresh last-confirmed playback checkpoint paused and require an explicit learner action to resume. Discard the IFrame-derived checkpoint and player-selected playlist video ID after 30 days without deleting the learner's saved resource or its learner-provided URL/IDs.
+- Before creating a YouTube player, require YouTube Data API v3 verification that the single video or every paginated playlist item has an explicit `status.madeForKids: false` result. Block MFK, unknown, unresolved, or failed checks; this is not a content-quality judgment. Playlist order and current-item details remain transient.
+- Accrue activity only for bounded observed intervals while playback is reported playing, the page is visible, and browser focus is confirmed. Browser/player signals are an activity proxy, not proof of attention, comprehension, or presence. Ambiguous intervals earn no time; supported interruption signals request a pause.
+- Keep the goal, Focus Cup ratio, actual recorded minutes, completion, and activity history distinct. A local day qualifies for the streak at 10 minutes of eligible recorded activity; dates use the browser's local calendar.
+- Build share cards from saved values only. Older totals without date buckets are not assigned invented dates. PNG download remains available if Web Share with image files is not supported.
+- Preserve keyboard access, responsive layouts, light/dark appearance, and reduced-motion behavior.
 
-Changing the goal preserves cumulative recorded focused activity and recalculates the percentage and remaining time against the new goal. It does not reset the total. In the required scope, no archived-history section is shown; archive and reactivation remain a proposed amendment.
+### Limitations and remaining boundaries
 
-### 4. Focused study workspace
+The product has no server, account, cloud backup, or cross-device sync. YouTube playback requires network access and remains subject to YouTube availability and embedding behavior. Browser signals cannot verify attention or guarantee perfect OS-level focus detection. The post-build compliance amendment adds a Data API preflight and fails closed for MFK/unknown content; it is not an MFK tracking branch and does not establish policy compliance. YouTube policy treatment of app-owned focus metrics and restrictions on content access still need human review. The privacy disclosure is not a legal review or a claim of compliance.
 
-The embedded YouTube player is the primary visual element, with its standard controls, branding, and functionality accessible. Supporting information is visually quieter: current video, playlist control when available, objective, editable goal, second-level live recorded activity with saved and unsaved totals distinguished, remaining time, dimensional Focus Cup, and focus/playback status. The Cup fill is derived from confirmed persisted activity. Provide a sticky **My Learning** action, Play/Resume, Pause, Recheck focus, **Finish session**, and a distinct **Mark Lesson Complete** action without obscuring YouTube controls or layering decorative UI over the player. Mark Lesson Complete opens an explicit confirmation; only confirming changes lesson status. A completed commitment remains completed and does not start another video automatically.
-
-Desktop uses a strong content hierarchy with the player dominant and supporting study details adjacent where space allows. Mobile stacks the video first, then the objective and progress details; controls and Finish session remain reachable without horizontal scrolling or hover-only interaction. Losing focus pauses local playback where supported. Returning shows a clear paused-while-away state and an explicit Resume action.
-
-### 5. In-context confirmation and feedback
-
-Replacement confirmation, field validation, video loading/errors, autoplay-blocked instructions, focus-loss feedback, goal-reached status, storage errors, and session-finish reflection are states of the relevant view, not extra dashboard pages. Use dialogs only for consequential replacement confirmation; all other feedback stays close to the related content and preserves context.
-
-### Visible component responsibilities
-
-- **Problem-cycle story:** explains the resource-search pattern as a sequence, without fabricated evidence or a claim that every student behaves alike.
-- **Lesson and objective fields:** capture the student's chosen YouTube lesson and intention; keep values intact through validation and load failures.
-- **Goal selector:** presents 15/25/45-minute choices, a 25-minute default, and a validated custom whole-minute value; changing the goal never resets activity.
-- **Active commitment summary:** keeps the current lesson, objective, goal, status, and Continue Learning action together; it does not become a grid of unrelated metrics.
-- **YouTube player:** presents the selected lesson with standard YouTube controls, branding, and player feedback intact.
-- **Focus status and activity display:** explains Playing, Paused, Buffering, Paused while away, and Goal reached states in text; shows exact cumulative recorded focused activity and remaining time.
-- **Focus Cup:** translates the saved activity/goal ratio into a private proportional visual; it does not generate achievements or substitute for the numeric total.
-- **Replacement confirmation:** explains that the current active record and its browser-local progress will be replaced in this POC after the candidate loads; Cancel preserves it. History is not represented until a later scope amendment is approved.
-- **Lesson-completion confirmation:** distinguishes learner-reported completion from finishing a session or reaching the focus goal. Cancel leaves the session and lesson state unchanged; confirm checkpoints state, stops the active session, and persists Completed.
-- **Mark Lesson Complete action:** is available in the focused workspace as a deliberate, separately labeled control; it is never replaced by Finish session or a player/goal event.
-- **Inline feedback:** relates errors and recovery actions to the relevant input or player and keeps the student's other entered/saved data intact.
-- **Working controls:** every visible CTA, button, selector, and link has a defined action and destination; no decorative or dead controls are shown.
-
-Sources: `scope.md > Inspiration & Identity`, `In Scope > Required solo learning`, and `Success and Acceptance Criteria`.
-
-## Look and Feel
-
-- Brand name and positioning: **K12Learn2Gether — Less Searching. More Finishing.** Core promise: **“Bring what you already want to learn. We help you actually finish it.”**
-- Colors: warm white `#FAF9F5`, electric lime `#D9F525`, soft pink `#F8C7D9`, and rich ink black. Use color purposefully for hierarchy, progress, and focus feedback; do not rely on color alone to convey state.
-- Editorial, premium, calm, confident, and original. Typography, whitespace, rhythm, and responsive composition should feel deliberate. Avoid generic SaaS/dashboard templates, repetitive feature-card grids, fake student stories or metrics, stock student imagery, excessive gradients/glass, emoji-heavy UI, decorative AI imagery, random floating shapes, and guilt-inducing exam messaging.
-- Focus Cup: original lightweight SVG/CSS illustration with dimensional shading, highlights, and a proportional liquid fill. The focus-time goal is cumulative for the single current learning commitment across study sessions. Fill is `min(cumulative recorded focused activity / current goal, 1)`. Show the exact cumulative total separately when it exceeds the goal, with remaining goal time at zero. Label the metric so it cannot be mistaken for daily progress, lesson completion, watched-video percentage, or comprehension. Use restrained transitions; disable or reduce motion when the user requests reduced motion.
-- Motion supports state change and orientation only. Never use confetti or celebratory rewards for watch time. Avoid animation that competes with the lesson.
-- A light appearance is required. Dark appearance is optional later only if it does not compromise core usability or delivery; it is not an acceptance requirement.
-- Keep YouTube's player branding and controls visible and usable. Surrounding app styling must not disguise the lesson source or interfere with the player.
-
-Source: `scope.md > Inspiration & Identity`.
-
-## Accessibility, Responsive Behavior, and Motion
-
-- Use semantic page landmarks and heading order. All inputs have visible labels; all actions work by keyboard and have visible focus indicators.
-- Goal presets and custom input have a clear accessible relationship. Validation is not conveyed by color alone, identifies the problem in text, and is associated with the affected field. Important state changes such as Paused while away, autoplay blocked, player error, and Goal reached are announced without announcing the timer every second.
-- Maintain readable contrast with the brand palette; use text or icons alongside color for focus and error states. Do not cover or intercept YouTube controls.
-- Respect `prefers-reduced-motion`; the Focus Cup fill and landing-page movement become static or reduced. Motion must not be required to understand the resource-search cycle or progress.
-- At mobile widths, stack the player and supporting details in a single reading order, keep controls reachable, preserve CTA visibility, and avoid horizontal scrolling. On desktop, maintain editorial hierarchy and keep the lesson visually dominant in the workspace.
-
-Source: `scope.md > Inspiration & Identity`, `In Scope > Required solo learning`.
-
-## Features and Behavior
-
-### Home, saved-return, and entry
-
-- Every student opens on Home, whether or not a commitment exists. The hero explains the problem, provides the primary Start CTA, and provides an in-page “See how it works” action.
-- Start CTAs navigate to Setup, not to a form hidden deep in the landing page. “See how it works” scrolls to the story section without trapping the student there.
-- The page communicates resource FOMO, fragmented study, and unfinished learning without asserting universal behavior or inventing statistics.
-- When an unfinished commitment exists, Home shows a contextual Continue Learning action in the first viewport; it opens the saved lesson paused. A completed commitment gets a My Learning action instead. The header My Learning action always opens the separate dashboard and never starts playback.
-
-Acceptance criteria (source: `scope.md > The Core Loop`, `Who It's For`, `What "Working" Looks Like`):
-
-- [ ] A first-time visitor can explain the product's promise from the first viewport and reach Setup with one primary CTA.
-- [ ] “See how it works” reaches the explanatory section; a CTA near the conclusion also opens Setup.
-- [ ] A returning student opens Home, sees the full problem story and contextual Continue Learning action, and can separately open My Learning from navigation.
-- [ ] Continue Learning opens the saved unfinished commitment paused, preserving its selected item, objective, goal, recorded activity, and position.
-- [ ] A completed commitment stays visible as Completed in My Learning and offers Start another lesson without autoplaying.
-- [ ] Landing content contains no fake statistics, testimonials, metrics, unbuilt-feature claims, or forced signup.
-
-### Setup and candidate lesson loading
-
-- Setup gathers one supported YouTube lesson URL, a non-empty short objective, and one personal focus-time goal.
-- The goal defaults to 25 minutes. Quick choices are 15, 25, and 45. Custom values are whole numbers from 5 to 240 inclusive. Empty, nonnumeric, fractional, negative, and out-of-range values are rejected with clear inline validation. The goal is a personal cumulative activity target, not a compulsory session limit.
-- The URL is validated for supported format. Embedding availability is not promised in advance; attempt to load the candidate. For a first commitment, keep the entered URL/objective/goal on load error. For replacement, keep the existing saved commitment unchanged until the candidate loads without player error.
-- On successful player load, enter the workspace and attempt playback once in response to the explicit Start action. Never loop/retry autoplay, force mute, or hide player controls. If scripted playback is blocked, keep the player paused and show **“Your lesson is ready. Press Play to begin.”**
-- Do not accrue activity during validation, loading, blocked playback, buffering, pause, error, hidden state, or reported unfocused state.
-
-Acceptance criteria (source: `scope.md > In Scope > Required solo learning`, `Success and Acceptance Criteria`):
-
-- [ ] The default is 25; presets select 15/25/45; a whole-number custom value from 5 to 240 is accepted and persisted.
-- [ ] Invalid custom values are rejected inline and accessibly; correcting a field does not clear other setup values.
-- [ ] Invalid URLs and unavailable/embedding-disabled candidates show useful errors near the URL input. A failed replacement leaves the old saved commitment and all its recorded activity intact.
-- [ ] Start attempts playback once after a successful load. When blocked, the exact manual-play instruction appears; no repeated attempt, forced mute, or hidden YouTube control occurs.
-
-### My Learning and commitment continuity
-
-- My Learning displays only the single current commitment as required by the current scope. The lesson, objective, goal, last confirmed position, recorded focused activity, remaining target time, Focus Cup, and lesson status remain together. Completed commitments retain these fields too.
-- An unfinished commitment has Continue Learning. A completed commitment has Start another lesson and stays Completed after reload; it does not show as unfinished or autoplay.
-- Continue Learning opens at the last confirmed playback position, paused. The student chooses when to play.
-- The student can change the goal at any time. Existing recorded focused activity is retained; the displayed percentage and remaining target are recalculated from the new goal. The actual total is never capped or reset.
-- Changing an unfinished lesson requires a clear confirmation describing the effect. Continue/cancel preserves the current commitment. Replace begins a candidate load while preserving the old commitment; only a successful load commits the new lesson. In this required POC, after explicit successful replacement the previous record is not retained because history is outside approved scope. The new commitment starts with its own goal and zero recorded focused activity. This limitation must be stated honestly; no silent discard is allowed.
-- Mark Lesson Complete is a separate explicit action. Confirmation ends any active study session, pauses playback where supported, checkpoints position and recorded focused activity, and saves Completed. It is not triggered by goal attainment, session finish, playback position, or YouTube's ended state. Completion grants no XP, badge, streak, or watch-time reward. The completed record remains until the student intentionally starts another lesson; a failed new lesson load leaves it intact.
-- Storage load/write failures show an honest, actionable error. Do not replace or clear the last valid saved commitment when a save fails.
-
-Acceptance criteria (source: `scope.md > The Core Loop`, `In Scope > Required solo learning`, `Success and Acceptance Criteria`):
-
-- [ ] Reopening the same browser shows the same active lesson, objective, goal, position, cumulative recorded focused activity, and commitment status.
-- [ ] Continue Learning loads paused at the saved position and never autoplays on return.
-- [ ] Changing the goal preserves total activity and recalculates the Cup; if activity exceeds the new goal, the Cup stays at 100%, actual minutes remain visible, and remaining time displays zero.
-- [ ] Continue/cancel in replacement confirmation leaves saved data untouched. A failed candidate does not change the active record. A successful explicit replacement starts the new lesson with its own goal and zero activity; time is never transferred between lessons and replacement is never presented as completion of the old lesson.
-- [ ] Confirming Mark Lesson Complete ends the active study session, pauses playback where supported, checkpoints progress, and persists Completed. Canceling does not change lesson or session status.
-- [ ] Goal reached, Finish session, YouTube video end, or playback position never completes a lesson. Completed status survives same-browser reload and presents Start another lesson without autoplay.
-- [ ] A storage failure is visible and does not silently overwrite known-good saved data.
-
-### Focused study, activity, goal reached, and session finish
-
-- During a study session, use the player's reported state and browser visibility/focus signals. Record activity only for observed intervals when the player reports PLAYING and the page is visible and focused where the browser reports focus. Buffering, paused, blocked, errored, interrupted, hidden, or reported-blur intervals add no activity. Browser/player signals do not prove human attention, comprehension, or tamper-resistant behavior.
-- On a supported visibility/focus loss, stop activity immediately and pause local playback. On return, explain the pause and wait for a deliberate Resume action; never autoplay after tab return, minimizing, browser reopen, or Continue Learning.
-- Interacting with YouTube's standard controls while remaining in the active study tab must not falsely trigger a focus-loss pause. Genuine tab switching, minimization and supported app-focus loss must still stop eligible focused-activity accumulation and pause playback where supported. Resolve the focus-detection strategy in `4-spec` and test iframe interactions, tab switching and window minimization.
-- At 100% of the current goal, playback and eligible activity continue normally. Show a subtle accessible **Focus-time goal reached** status, keep the Cup visually capped, and continue showing the exact cumulative activity. Offer Continue studying and Finish session. Do not stop, navigate, or mark the lesson complete automatically.
-- **Finish session** ends only the current study period: pause playback where supported, checkpoint the last confirmed playback position and eligible activity, optionally collect a short reflection about what was covered or what remains, and return to My Learning. If the lesson is unfinished, it remains the active commitment with cumulative activity intact and Continue Learning prominent.
-- Subsequent study sessions add eligible recorded activity to the same active commitment without resetting or duplicating earlier totals. Lesson completion is distinct from session finish and requires a separate confirmed Mark Lesson Complete action. Completion is the learner's self-report, not verified understanding or mastery.
-
-Acceptance criteria (source: `scope.md > The Core Loop`, `What "Working" Looks Like`, `In Scope > Required solo learning`, `Success and Acceptance Criteria`):
-
-- [ ] Activity increases only while PLAYING + visible + reported focused; pause, buffering, blocked, error, hidden, blur, and unobserved/suspended gaps add none.
-- [ ] Interacting with YouTube's standard controls while remaining in the active study tab must not falsely trigger a focus-loss pause. Genuine tab switching, minimization and supported app-focus loss must still stop eligible focused-activity accumulation and pause playback where supported.
-- [ ] Automated tests cover YouTube iframe control interaction, tab switching and window minimization; the `4-spec` defines the focus-detection strategy. Supported genuine focus loss pauses local playback and recording; return feedback is visible and playback remains paused until the student acts.
-- [ ] At goal, playback and eligible recording continue; the status and actions appear; the Cup is capped at 100%, while exact cumulative activity remains accurate.
-- [ ] The focus-time goal is cumulative for the current commitment across multiple sessions. For 90 eligible minutes toward a 25-minute goal, the Cup shows 100%, the displayed total is 90 minutes, remaining goal time is zero, and the lesson remains unfinished unless explicitly marked complete. Changing the goal preserves the 90-minute total and recalculates fill.
-- [ ] Finish session checkpoints state and ends the session without finishing the lesson. An unfinished lesson remains on My Learning and can be continued after reopening.
-- [ ] Mark Lesson Complete is distinct from Finish session; confirming it ends an active session and persists Completed, while goal attainment, playback reaching the end, and session finish leave the lesson status unchanged.
-- [ ] A completed lesson remains Completed after reload and offers Start another lesson without starting playback or a new commitment automatically.
-- [ ] A playlist URL is retained with the commitment; its accessible panel shows only entries/order returned by YouTube. Selecting an item updates the current video/index while preserving objective, goal, and recorded activity.
-- [ ] The live activity counter updates at second-level precision, while the Focus Cup uses the last confirmed persisted total and remains capped at 100%.
-- [ ] A later session adds only new eligible activity; tests show no reset or double count across finish, reload, and resume.
-- [ ] Reflection, if included, is optional and does not claim comprehension or completion.
-
-### YouTube error recovery and local persistence
-
-- URL-format errors, unavailable or embedding-disabled videos, player errors, and interrupted playback receive distinct, calm feedback near the relevant player/input. Retain setup values. During a replacement attempt, keep the old saved commitment until a candidate loads successfully. On playback interruption, stop activity, preserve the last confirmed state, and allow retry or an intentional lesson change.
-- Solo progress is stored in the same browser profile. Explain that it is not an account or cloud backup and clearing site data may remove it. Persist the active lesson identifier/link, objective, goal, confirmed playback position, cumulative recorded focused activity, and session/commitment status. Save during activity and at meaningful transitions; do not rely on unload alone.
-
-Acceptance criteria (source: `scope.md > In Scope > Required solo learning`, `Success and Acceptance Criteria`):
-
-- [ ] Errors identify the issue and next useful action without clearing the objective, goal, or current commitment.
-- [ ] A failed replacement or player error never awards activity or destroys the previous saved record.
-- [ ] Reload/reopen in the same browser restores the last confirmed state; browser site-data clearing is disclosed as a loss risk.
-
-## States and Boundaries
-
-- **First use:** landing page, no active progress, empty Focus Cup only if shown as an illustration; never imply recorded activity.
-- **Setup ready / invalid:** fields retain user input; invalid URL, missing objective, or invalid goal has inline guidance.
-- **Loading candidate:** visible loading feedback; no activity accrues and existing commitment remains intact until successful load.
-- **Player ready / autoplay blocked:** workspace is visible, paused, with the manual-play instruction.
-- **Playing:** activity indicator and cumulative time update only from eligible observed intervals.
-- **Paused / buffering / hidden / unfocused / interrupted:** no activity accrues; supported focus loss pauses playback.
-- **Return:** explain why paused; explicit Resume required.
-- **Goal reached:** subtle status and actions; player/session continue until the student chooses.
-- **Session finished, lesson unfinished:** session is ended; commitment remains unfinished and prominent in My Learning.
-- **Lesson completion requested:** a confirmation distinguishes the learner's self-report from a study-session finish; Cancel preserves state, confirm checkpoints and persists Completed.
-- **Lesson completed:** My Learning shows Completed and Start another lesson. No video autoplays and no understanding/mastery claim is made.
-- **Commitment replacement:** explicit continue/replace confirmation; failed load preserves existing state; successful replacement is explicit and, in this scope, replaces the old active record without history.
-- **Persistence failure:** explain that the latest change could not be saved; keep the last known valid data and do not claim unsaved activity persisted.
-- **No network/video error:** preserve the commitment and stop activity; provide retry/replace path. The app does not promise video availability or uninterrupted YouTube service.
-
-Source: `scope.md > In Scope > Required solo learning` and `Success and Acceptance Criteria`.
-
-## Product Decisions
-
-- Product name and positioning are **K12Learn2Gether — Less Searching. More Finishing.**; promise: “Bring what you already want to learn. We help you actually finish it.”
-- Solo learning and continuity are the required product; collaboration is optional and only considered after solo acceptance passes.
-- Navigation: Home is always the editorial entry point; My Learning is the distinct saved-commitment dashboard; Continue Learning opens the saved unfinished commitment in the paused workspace. Navigating among these views does not finish a session or reset progress.
-- Default goal is 25 minutes; 15/25/45 presets and custom whole minutes 5–240 are available. Goal changes never reset recorded focused activity.
-- Start focused study attempts playback once after successful load; blocked autoplay falls back to an explicit Play instruction. Resume after any interruption is always user-initiated.
-- A study session is one period; a focus-time goal is an activity target; a learning commitment is the active lesson/objective; lesson completion is separate. Finishing a session does not finish its lesson; only a confirmed Mark Lesson Complete action does.
-- **Approved scope amendment:** the proof of concept adds one persisted, learner-confirmed completion status and its necessary confirmation/completed-state UI. It does not add archived lessons, multiple commitments, or a lesson library; Previous Learning and reactivation remain deferred.
-- Recorded focused activity means locally measured time from observed player and browser signals, not verified attention, comprehension, or tamper-resistant evidence.
-- Solo progress is browser-local; no account, cloud backup, or cross-device sync is required.
-- Archive and reactivation are not part of the approved scope or required acceptance; see the proposed post-core amendment below.
-- Daily goals/streaks, full playlist discovery and management systems, course libraries, and AI tutoring are deferred; the supported supplied-playlist workflow remains in scope. No reward is tied to YouTube viewing.
-
-## What We're Building
-
-The required POC is a polished, responsive editorial Home that remains the entry point for new and returning students, a separate lesson/goal Setup view, a distinct saved-commitment My Learning dashboard, and a focused YouTube workspace. It supports one active commitment, explicit safe replacement, validated custom goals, browser-local continuity, observable focus protection, Finish session distinct from a separately confirmed Mark Lesson Complete action, recoverable player errors, and an accurate private Focus Cup. Optional finish reflection is included only if it does not delay core behavior. The 2–3 minute demo shows actual application behavior, beginning with the product problem and moving quickly to a real lesson, focus pause, restored Continue Learning state, and the distinct completion flow. The first ten seconds establish the problem and product promise; the demo reaches working controls early rather than spending its opening on slides. Any displayed activity is genuinely recorded; no seeded or accelerated fake progress is allowed.
-
-## Deferred From the POC
-
-- **Previous Learning archive and reactivation — proposed post-core scope amendment, not approved or required.** If separately approved and time permits, every intentionally replaced commitment would be stored locally with its own lesson identifier/link, objective, goal, last confirmed position, cumulative recorded focused activity, and unfinished/finished status. My Learning would show active first and Previous Learning second. Reactivating an archive would first preserve the current active commitment, then restore the selected one without transferring time. Failed switching would preserve both. If browser storage fails or is exhausted, do not overwrite or delete existing records; show an honest error and leave the active commitment unchanged. Do not build a read-only archive just for appearance; if the amendment is not approved/completed, keep the current single-active-commitment behavior and disclose replacement effects.
-- Rough added effort: approximately 2–4 active hours to persist all replaced records, add the Previous Learning view, and verify repeated replacements, failed candidates, reloads, no time transfer, and storage exhaustion; another 1–2 hours for reactivation and safe swap/recovery verification. This estimate is additional to the already-required candidate-loading behavior and is provisional before `4-spec`; browser-test setup and storage-failure behavior may change it. Since the required solo core already strains the 2–4 hour target, this addition threatens submission readiness and stays post-core.
-- Full playlist discovery, multi-lesson pathways, course library, recommendations, and search marketplace.
-- Academic AI/tutoring, PDF workspaces, practice exams, multiplayer rooms, and collaboration unless the solo experience is complete and independently verified first.
-- Daily goals, streaks, and long-term date-based history. These require a separate scope proposal and policy review; do not reward or incentivize YouTube viewing.
-- Full accounts, identity verification, cloud-backed personal progress, analytics dashboards, payments/monetization, and elaborate shareable achievement cards.
-- Dark appearance unless it can be added after the core without reducing accessibility or delivery quality.
-
-## Possible Later Enhancements
-
-The longer-term vision includes daily goals, learning consistency, streaks, and progress history. A private, neutral dated activity record could be explored as a separate scope amendment, but no policy-compliance claim is made; streaks or other watch-based incentives remain excluded pending review. Archive/reactivation, broader curriculum continuity, collaboration, and tutoring may be revisited only after the core solo workflow is accepted and shipped.
-
-## Non-Goals
-
-- Replacing or rehosting YouTube teachers or content, hiding YouTube branding/controls, or promising to remove every platform recommendation.
-- Claiming to verify attention, understanding, lesson completion, or syllabus completion from playback time.
-- Automatically pausing at goal completion, auto-resuming on return, or marking a lesson complete from watch time or playback position.
-- Creating extra pages, navigation, metrics, testimonials, fake students, placeholder AI, or decorative controls without working behavior.
-- Reusing any source, asset, UI component, configuration, migration, or database from the previous Bolt.new project.
-
-## Planning Boundary for `4-spec`
-
-No product behavior questions remain open for this PRD. The following implementation choices belong in `4-spec`, not this product definition:
-
-- Browser-local storage mechanism, supported browsers, and exact persistence checkpoint interval. The product requirement is fixed: same-browser continuity, safe failure, and no unload-only persistence.
-- Optional collaboration remains a stretch and must not enter the technical plan until the required solo workflow is implemented and independently verified.
-- Previous Learning archive/reactivation remains a proposed post-core scope amendment. It is not required by this PRD; implementing it would first require updating the approved scope.
-
+This amended PRD remains `draft` until the learner personally reviews and approves it.

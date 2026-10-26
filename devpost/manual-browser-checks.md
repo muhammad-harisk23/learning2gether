@@ -1,21 +1,34 @@
-# Manual Browser Verification Record
+---
+doc: manual-browser-checks
+status: draft
+---
 
-## Automated real YouTube embed smoke tests
+# Manual Browser Checks
 
-Run on 2026-10-25 with `@playwright/test` 1.64.1 against `http://127.0.0.1:5173`.
+These checks require a configured browser/deployment and real YouTube/API behavior. Automated tests use mocked Data API responses and do not count as completing these checks. Leave results unchecked until personally observed.
 
-- **Chromium:** passed. The official YouTube IFrame API loaded, the sample video `M7lc1UVf-VE` was confirmed as the selected candidate, and the player reported `playing`. Clicking the real video surface paused playback and the player state changed to `paused`.
-- **Firefox:** passed. The same real embed reached the selected candidate and the player reported `playing`. Clicking the real video surface paused playback and the player state changed to `paused`.
-- These are real YouTube embed checks inside Playwright-managed browser processes. They establish API load and actual player-reported playback state for this sample video, not native desktop focus behavior.
+## YouTube API setup and deployment
 
-## Focus signal tests
+- [ ] Enable YouTube Data API v3 in the intended Google Cloud project.
+- [ ] Create a dedicated key restricted to YouTube Data API v3 and the exact local/production HTTP referrers required.
+- [ ] Configure `VITE_YOUTUBE_API_KEY` in the local or deployment environment without committing the value.
+- [ ] Inspect the deployed response headers and confirm the intended `Referrer-Policy` is present.
+- [ ] Confirm that a missing key or Data API failure blocks before any iframe is created.
 
-The real iframe-click observation in both browsers reported `visibility=visible`, `hasFocus=true`, and `iframeActive=true`. The full Playwright workspace suite passed in Chromium and Firefox for player-state gating, second-level counter updates, hidden-page pause requests, no automatic resume, playlist UI behavior, and storage persistence. The test changes visibility/focus signals through a controlled test fixture. These checks verify the application's response to those signals only.
+## Eligibility and playback
 
-## Not manually verified
+- [ ] With a known, verified non-MFK video, confirm preflight completes and only then the player is created.
+- [ ] With a known MFK video, confirm a concise eligibility message appears and no iframe is created.
+- [ ] With a playlist, confirm the entire playlist is checked before an iframe is created; confirm any unresolved/unknown/MFK item blocks the playlist rather than being skipped.
+- [ ] Save a resource, return while its checkpoint is fresh, and confirm it opens paused at the last confirmed position.
+- [ ] In a controlled local browser record, test a checkpoint older than 30 days; confirm the library resource and learner data remain, the checkpoint/player-selected playlist ID are discarded, and successful revalidation opens from the beginning.
+- [ ] Confirm standard YouTube controls remain visible, player dimensions remain at least 200×200, no app overlay covers the player, no autoplay occurs before learner intent, and the app does not download/cache audiovisual content.
 
-- Native browser focus behavior during a tab switch, minimize, or external-application switch while the real YouTube iframe remains active; the real click check only observed a visible, focused window in both engines.
-- Real YouTube playlist entry availability, ordering, and titles for the learner's supplied playlist. Automated playlist tests use a fake IFrame API response; they verify rendering and selection logic, not live playlist data.
-- Real autoplay-blocked behavior, dedicated YouTube control-button interaction, and seeking.
+## Human policy review
 
-No browser compatibility claim is made for those unverified cases. Use one active study tab for the POC. The app must stop crediting time on ambiguous focus and must not claim it can distinguish every OS-level focus change.
+- [ ] Owner/legal reviewer assesses whether the API Client is child-directed under applicable law.
+- [ ] Human policy reviewer assesses the app-owned focus metric and the required fail-closed MFK/unknown eligibility behavior against current YouTube policies. The in-app disclosure is not a policy determination.
+
+## Results
+
+No manual verification results are recorded yet. Add observations only after the relevant check is actually performed.

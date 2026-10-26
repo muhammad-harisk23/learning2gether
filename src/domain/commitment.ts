@@ -1,4 +1,4 @@
-import type { ConfirmedYouTubeLesson } from "./youtubeUrl";
+import type { ConfirmedYouTubeLesson, YouTubeLesson } from "./youtubeUrl";
 import { DEFAULT_FOCUS_VESSEL, type FocusVesselStyle } from "./focusVessel";
 
 export type LessonStatus = "unfinished" | "completed";
@@ -7,11 +7,13 @@ export type SessionStatus = "not-started" | "active" | "interrupted" | "finished
 export interface CommitmentRecordV1 {
   schemaVersion: 1;
   revision: number;
-  lesson: ConfirmedYouTubeLesson;
+  lesson: YouTubeLesson;
+  sourceVideoId?: string;
   objective: string;
   goalMinutes: number;
   vesselStyle?: FocusVesselStyle;
   lastConfirmedPositionMs: number;
+  checkpointRecordedAt?: string;
   cumulativeRecordedFocusedMs: number;
   lessonStatus: LessonStatus;
   sessionStatus: SessionStatus;
@@ -39,6 +41,7 @@ export function newCommitment(
     goalMinutes,
     vesselStyle: DEFAULT_FOCUS_VESSEL,
     lastConfirmedPositionMs: 0,
+    checkpointRecordedAt: timestamp,
     cumulativeRecordedFocusedMs: 0,
     lessonStatus: "unfinished",
     sessionStatus: "active",

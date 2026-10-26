@@ -1,4 +1,8 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
+
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("k12learn2gether.policy-consent.v1", "accepted"));
+});
 
 test("homepage explains the real problem and the illustrative journey", async ({ page }) => {
   await page.goto("/");
@@ -63,7 +67,7 @@ test("primary navigation reaches Home sections, My Learning, and Privacy & Data"
   await expect(page.getByRole("heading", { name: "Privacy & Data." })).toBeVisible();
   await expect(page.getByText("k12learn2gether.library.v1")).toBeVisible();
   await expect(page.getByText(/exact site origin/i)).toBeVisible();
-  await expect(page.getByText(/YouTube\/Google may receive requests/i)).toBeVisible();
+  await expect(page.getByText(/The player sends data to YouTube\/Google/i)).toBeVisible();
   await expect(page.getByText(/no app backend, account system, analytics integration/i)).toBeVisible();
   await expect(page.getByText(/there is no in-app delete control/i)).toBeVisible();
 

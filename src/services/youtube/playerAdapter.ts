@@ -1,5 +1,5 @@
 import { loadYouTubeApi, YT_STATE, type YouTubeApi, type YouTubePlayer } from "./iframeApi";
-import { canonicalYouTubeUrl, type ConfirmedYouTubeLesson, type YouTubeLesson } from "../../domain/youtubeUrl";
+import { type ConfirmedYouTubeLesson, type YouTubeLesson } from "../../domain/youtubeUrl";
 
 export type PlayerState = "unstarted" | "cued" | "playing" | "paused" | "buffering" | "ended";
 export type CandidateResult = { status: "accepted"; lesson: ConfirmedYouTubeLesson } | { status: "error" | "timeout" | "cancelled"; message: string };
@@ -118,7 +118,7 @@ export class PlayerAdapter {
                 this.resolveOnce({ status: "accepted", lesson: {
                   ...lesson,
                   videoId: video.videoId,
-                  canonicalUrl: canonicalYouTubeUrl(video.videoId, lesson.playlistId),
+                  canonicalUrl: lesson.canonicalUrl,
                   ...(video.playlistIndex !== undefined ? { playlistIndex: video.playlistIndex } : {}),
                   ...(video.playlistVideoIds ? { playlistVideoIds: video.playlistVideoIds } : {}),
                   ...(video.title ? { title: video.title } : {}),

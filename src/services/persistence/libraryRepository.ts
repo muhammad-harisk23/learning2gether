@@ -1,6 +1,7 @@
 import type { CommitmentRecordV1 } from "../../domain/commitment";
+import { decodeCommitment } from "./commitmentCodec";
 import { emptyLibrary, legacyLibraryItem, localDateKey, MAX_ACTIVITY_DAYS, MAX_LIBRARY_ITEMS, type LibraryItem, type LibraryStateV1 } from "../../domain/library";
-import { CommitmentRepository } from "./commitmentRepository";
+import { COMMITMENT_KEY, CommitmentRepository } from "./commitmentRepository";
 import { decodeLibrary, parseStoredLibrary } from "./libraryCodec";
 
 export const LIBRARY_KEY = "k12learn2gether.library.v1";
@@ -33,6 +34,12 @@ export class LibraryRepository {
       this.expectedRaw = raw;
       this.state = parsed.state;
       this.blocked = null;
+      if (JSON.stringify(parsed.state) !== raw) {
+        const migrated = { ...parsed.state, revision: parsed.state.revision + 1 };
+        const write = this.write(migrated, migrated.revision);
+        if (write.status !== "saved") return { status: "migration-failed" };
+        return { status: "valid", state: write.state };
+      }
       return { status: "valid", state: parsed.state };
     }
 
@@ -51,6 +58,11 @@ export class LibraryRepository {
     };
     const write = this.write(migrated, 1);
     if (write.status !== "saved") return { status: "migration-failed" };
+    try {
+      this.storage().removeItem(COMMITMENT_KEY);
+    } catch {
+      return { status: "migration-failed" };
+    }
     return { status: "valid", state: write.state };
   }
 
@@ -61,14 +73,15 @@ export class LibraryRepository {
   addItem(item: LibraryItem): LibraryWriteResult {
     const current = this.state;
     if (!current || this.blocked || this.expectedRaw === undefined) return { status: this.blocked ?? "unverified" };
-    const existing = current.items.find((candidate) => candidate.id === item.id);
+    const cleanItem = { ...item, commitment: decodeCommitment(item.commitment) ?? item.commitment };
+    const existing = current.items.find((candidate) => candidate.id === cleanItem.id);
     if (existing) return { status: "duplicate" };
-    if (current.items.length >= MAX_LIBRARY_ITEMS || !decodeLibrary({ ...current, revision: current.revision + 1, items: [...current.items, item], selectedItemId: item.id })) {
+    if (current.items.length >= MAX_LIBRARY_ITEMS || !decodeLibrary({ ...current, revision: current.revision + 1, items: [...current.items, cleanItem], selectedItemId: cleanItem.id })) {
       return { status: "not-saved" };
     }
-    const next = { ...current, revision: current.revision + 1, selectedItemId: item.id, items: [...current.items, item] };
+    const next = { ...current, revision: current.revision + 1, selectedItemId: cleanItem.id, items: [...current.items, cleanItem] };
     const result = this.write(next, current.revision + 1);
-    return result.status === "saved" ? { ...result, item } : result;
+    return result.status === "saved" ? { ...result, item: result.state.items.find((candidate) => candidate.id === cleanItem.id) } : result;
   }
 
   selectItem(id: string): LibraryWriteResult {
@@ -84,13 +97,15 @@ export class LibraryRepository {
   updateCommitment(itemId: string, record: CommitmentRecordV1, now = new Date()): LibraryWriteResult {
     const current = this.state;
     if (!current || this.blocked || this.expectedRaw === undefined) return { status: this.blocked ?? "unverified" };
+    const cleanRecord = decodeCommitment(record);
+    if (!cleanRecord) return { status: "not-saved" };
     const prior = current.items.find((item) => item.id === itemId);
-    if (!prior || record.revision !== prior.commitment.revision + 1) return { status: "not-saved" };
-    const activityDelta = record.cumulativeRecordedFocusedMs - prior.commitment.cumulativeRecordedFocusedMs;
+    if (!prior || cleanRecord.revision !== prior.commitment.revision + 1) return { status: "not-saved" };
+    const activityDelta = cleanRecord.cumulativeRecordedFocusedMs - prior.commitment.cumulativeRecordedFocusedMs;
     if (activityDelta < 0 || !decodeLibrary({
       ...current,
       revision: current.revision + 1,
-      items: current.items.map((item) => item.id === itemId ? { ...item, commitment: record } : item),
+      items: current.items.map((item) => item.id === itemId ? { ...item, commitment: cleanRecord } : item),
     })) return { status: "not-saved" };
 
     const dateKey = localDateKey(now);
@@ -99,7 +114,7 @@ export class LibraryRepository {
       : current.activity;
     const updatedItem: LibraryItem = {
       ...prior,
-      commitment: record,
+      commitment: cleanRecord,
       ...(activityDelta > 0 ? { lastStudiedAt: now.toISOString() } : {}),
     };
     const next: LibraryStateV1 = {
@@ -118,7 +133,16 @@ export class LibraryRepository {
       if (event.key !== LIBRARY_KEY && event.key !== null) return;
       if (this.expectedRaw === undefined) return;
       try {
-        if (this.storage().getItem(LIBRARY_KEY) !== this.expectedRaw) {
+        const actual = this.storage().getItem(LIBRARY_KEY);
+        if (actual !== this.expectedRaw && actual !== null) {
+          const parsed = parseStoredLibrary(actual);
+          if (parsed.status === "valid" && this.state && sameLibraryExceptRevision(parsed.state, this.state)) {
+            this.expectedRaw = actual;
+            this.state = parsed.state;
+            return;
+          }
+        }
+        if (actual !== this.expectedRaw) {
           this.blocked = "stale";
           onChange("stale");
         }
@@ -188,6 +212,12 @@ export class LibraryRepository {
     this.blocked = "unverified";
     return { status: "unverified" };
   }
+}
+
+function sameLibraryExceptRevision(left: LibraryStateV1, right: LibraryStateV1): boolean {
+  const { revision: _leftRevision, ...leftContent } = left;
+  const { revision: _rightRevision, ...rightContent } = right;
+  return JSON.stringify(leftContent) === JSON.stringify(rightContent);
 }
 
 function addActivity(

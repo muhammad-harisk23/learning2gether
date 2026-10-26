@@ -1,119 +1,131 @@
-# K12Learn2Gether
+<h1 align="center"><img src="docs/assets/k12learn2gether-logo.svg" alt="K12Learn2Gether" width="620" /></h1>
 
-**Less searching. More finishing.**
+<p align="center"><strong>Less searching. More finishing.</strong></p>
 
-A student opens YouTube to understand a difficult topic. They find a promising lesson, then recommendations, suggested videos, Shorts, and playlist choices start competing for their attention. They may leave having watched several things without finishing the lesson they meant to study.
+Learners often already have a lesson or playlist they trust. K12Learn2Gether helps them save it in a Personal Learning Library, return to a saved playback position, study in a focus-aware workspace, and see eligible recorded focus toward a goal they chose.
 
-That is an illustrative situation, not a research finding or a measured student outcome. K12Learn2Gether explores the gap between finding a useful lesson and staying with that learning path long enough to finish it.
+<p align="center">
+  <img src="docs/assets/product-overview.png" alt="Current K12Learn2Gether home screen showing the product's illustrative lesson-distraction scenario" width="100%" />
+</p>
 
-## Why this exists
+## The problem
 
-Free lessons let students learn from teachers and explanations they already trust. The discovery experience around a lesson can also make it easy to keep comparing teachers, roadmaps, and playlists after a student has found something useful.
+After finding a useful lesson, a learner can get pulled into recommendations, teacher comparisons, playlists, roadmaps, and repeated searching. Losing a playback position can make it harder to return to the same learning thread. This is the product's motivating scenario, not a formal research finding or a measured outcome.
 
-K12Learn2Gether works with the resource a learner chooses. It does not replace YouTube, teachers, or coaching, and it does not block every recommendation. Its focus is continuity: keep a lesson, a personal goal, recorded activity, and a return point together so the learner has a clearer way back to studying.
+## The idea
 
-A playlist can organize videos, a timer can measure elapsed time, and notes can hold ideas. This proof of concept connects a chosen YouTube resource to a study goal and a saved return path. It only records activity when the player and browser signals meet its eligibility rules; it cannot tell whether someone is paying attention.
+```text
+Choose a trusted resource
+          ↓
+Save it in your library
+          ↓
+Return with Continue Learning
+          ↓
+Restore the saved position, paused
+          ↓
+Study with eligible activity recording
+          ↓
+See and share your recorded effort
+```
 
-## What the app does
+## What it does
 
-- Save multiple YouTube videos or supplied playlists in a personal library. Each resource can have a name, subject, learning objective, and focus-time goal.
-- Study one selected resource at a time in a workspace with YouTube's standard embedded player controls.
-- For a playlist, view the ordered items and select a video. YouTube provides the actual IDs and order; the app shows a title only when the IFrame API provides one for the current video.
-- Record **eligible focused activity** while a study session is active, the player reports that it is playing, the page is visible, and the browser reports the app window is focused. Delayed or unobserved intervals are discarded rather than estimated.
-- Save the confirmed playback position, goal, completion choice, and recorded activity locally. Return to an unfinished resource without starting playback automatically.
-- View recorded time toward a personal goal in the private Focus Cup. The cup is an activity visualization, not evidence of understanding or lesson completion.
-- Finish a study session separately from marking a lesson complete. Completion requires a deliberate learner confirmation and records the learner's choice; it does not claim mastery.
-- Review saved resources and local activity summaries in My Learning.
+- **Personal Learning Library:** save multiple YouTube videos or supplied playlists, each with its own name, subject, learning objective, focus goal, and progress. Continue Learning returns to a saved resource.
+- **Resume continuity:** the app restores the last confirmed playback checkpoint and leaves the player paused until the learner chooses Play. IFrame-derived checkpoints expire after 30 days; a video that has not been opened again may return to the beginning.
+- **Focus-aware workspace:** eligible recorded activity requires an active study session, a playing player, a visible page, and confirmed browser-window focus. Supported interruption signals stop recording; they cannot prove human attention.
+- **Focus Cup and summaries:** choose a glass, coffee cup, mug, or bottle. The visual fill follows recorded focus relative to the selected goal and caps at 100%; recorded minutes remain uncapped. My Learning shows available Today, Week, Month, Year, and lifetime totals. A local calendar day qualifies for the streak at 10 minutes of eligible activity.
+- **Learner-marked completion:** a lesson is marked complete only after the learner chooses that action. This records their choice; it does not measure mastery.
+- **Share progress:** create Daily Focus, Learning Recap, and eligible Goal Reached cards from saved app data. Cards export as 1080×1350 PNGs; native image sharing is offered when the browser supports it, with PNG download available.
+- **Presentation and access:** responsive layouts, keyboard-operable controls, reduced-motion support, and a browser-local light/dark preference.
+- **YouTube eligibility preflight:** before creating a player, the app checks `status.madeForKids` for a video or every resolved video in a supplied playlist. MFK, unknown, unresolved, or unverifiable content is blocked. The preflight requires a restricted YouTube Data API v3 key.
 
-The central design principle is **one chosen lesson, one goal, a clearer path back to learning**. You can keep several resources in the library, while the workspace studies one selected resource at a time.
+Recorded focus is a productivity proxy based on player and browser signals. It is not proof of attention, comprehension, mastery, or verified learning.
 
-## What is different about this proof of concept
+### Resume in practice
 
-The product is organized around returning to a chosen learning thread, not around adding another discovery feed or encouraging more clicks. The player remains YouTube's player, and the app uses observed playback and browser-focus signals to decide when activity may be recorded.
+```text
+Watch to 06:13 → leave → return with Continue Learning
+              → restore near 06:13 → press Play when ready
+```
 
-Those signals are a limited activity proxy. They do not prove attention, comprehension, or that a student has finished learning. The app does not promise to remove every distraction from YouTube.
+The app restores its last confirmed checkpoint; it does not promise frame-perfect positioning.
 
-## Get started
+## Built with
 
-### Prerequisites
+React, TypeScript, and Vite; YouTube IFrame Player API and YouTube Data API v3; browser `localStorage`; Vitest and Playwright.
 
-- Node.js 24.15 or later in the 24.x line. The inspected environment used Node.js 24.22.0 and npm 11.19.1; the lockfile includes dependencies with modern Node engine requirements.
-- npm, included with Node.js.
+### How it works
 
-### Run locally
+```text
+React UI
+   ↓
+Domain rules and progress selectors
+   ↓
+FocusController + YouTube player/preflight adapters
+   ↓
+Validated, versioned browser-local persistence
+```
 
-```sh
+The application has no backend or account system. The UI coordinates the flow, domain modules calculate resource and progress state, adapters handle browser/player signals and API checks, and the persistence repository validates local records.
+
+For the product boundary and build record, see the [scope](devpost/scope.md), [PRD](devpost/prd.md), [technical spec](devpost/spec.md), [build checklist](devpost/checklist.md), and [manual browser checks](devpost/manual-browser-checks.md). The planning amendments are still marked draft for learner review; the implementation has continued to evolve, and the original approved planning history remains in Git.
+
+## Run locally
+
+### Requirements
+
+- Node.js 24.15 or later in the 24.x line and npm.
+- A modern browser with JavaScript, `localStorage`, Canvas, and YouTube embedded-player support.
+- Internet access and a restricted YouTube Data API v3 key for resource eligibility checks and playback.
+
+```bash
 git clone https://github.com/muhammad-harisk23/learning2gether.git
 cd learning2gether
 npm ci
+```
+
+Create a Google Cloud project, enable **YouTube Data API v3**, and create an API key restricted to that API and the exact development/production HTTP referrers. Copy `.env.example` to `.env.local` and set `VITE_YOUTUBE_API_KEY`. Vite exposes `VITE_` values in browser code, so this is a public, referrer-restricted key, not a secret; never use an unrestricted key or commit a real value. Configure the production key in the deployment environment for its actual origin.
+
+```bash
 npm run dev
 ```
 
-Open the local URL printed by Vite, normally <http://127.0.0.1:5173/>.
+Open the local URL printed by Vite. Without a key and explicit `madeForKids: false` status for every video, the app fails closed and does not create a player. Automated browser tests mock the Data API boundary and do not need a real key.
 
-No application environment variables, API keys, account setup, or backend service are required. YouTube playback does require an internet connection.
+## Validation
 
-### Build and checks
-
-```sh
+```bash
 npm run typecheck
 npm test
-npm run test:e2e
+npx playwright test --workers=1
 npm run build
 npm run preview
 ```
 
-`npm test` runs the Vitest unit suite. `npm run test:e2e` runs the Playwright browser suite. On systems that restrict parallel worker processes, run it with one worker:
+The test suites cover domain and persistence rules, resource-library flows, playback checkpoint restoration, focus eligibility, Focus Cup behavior, sharing, and browser layouts. The real YouTube embed smoke test still depends on YouTube availability and an eligible resource.
 
-```sh
-npm run test:e2e -- --workers=1
-```
+## Privacy and data
 
-`npm run build` type-checks and creates static output in `dist/`; `npm run preview` serves that output locally. A preview hosted on a different hostname or port has a different browser-storage origin.
+- There is no app account, backend, analytics service, or cloud storage. Learner library and progress data live in `localStorage` for the current browser profile and site origin. There is no in-app delete control; clearing that site's browser data removes local progress. Another profile or device has separate data.
+- Learner-provided/application data includes the canonical URL and video/playlist IDs parsed from it, resource name, subject, objective, focus goal, completion choice, and vessel preference. These remain saved even when a checkpoint expires. YouTube API-derived data includes MFK status, playlist items/order, player-selected playlist video ID, returned title, and player position; API results and titles are not cached as a library.
+- YouTube is a third-party service. The app checks MFK status before embedding. IFrame-derived playback checkpoints and player-selected playlist IDs have timestamps and are discarded after 30 days; the saved resource remains and, after successful revalidation, playback starts from the beginning. A video ID parsed from the learner-supplied URL remains application data.
+- K12Learn2Gether recorded focus is an app-owned study-session metric. It is not a YouTube metric and does not measure YouTube engagement, verified attention, comprehension, or mastery. YouTube policy treatment of independently derived metrics remains ambiguous; this wording does not resolve that issue. YouTube's player may send data to YouTube/Google and may display ads.
+- Privacy details and links to the [YouTube Terms of Service](https://www.youtube.com/t/terms) and [Google Privacy Policy](https://policies.google.com/privacy) are available in the app's Privacy & Data page. Current API-client terms are in the [YouTube Developer Policies](https://developers.google.com/youtube/terms/developer-policies).
 
-## How it works
+## Limitations
 
-The app is a client-side React and TypeScript application served and built with Vite. [src/main.tsx](src/main.tsx) mounts the application. [src/ui/App.tsx](src/ui/App.tsx) coordinates the Home, setup, My Learning, study, privacy, and recovery views.
+- Progress is local to one browser profile and origin; there is no cross-device sync or cloud backup.
+- YouTube, network access, embedding permissions, API availability, and browser support affect playback and preflight.
+- YouTube developer policies include restrictions concerning independently derived metrics and restricting user access to content. The app's focus-metric treatment and required fail-closed eligibility gate need human policy review; this project does not claim that the implementation resolves either interpretation.
+- Browser/player signals do not prove attention, comprehension, or mastery and cannot guarantee detection of every operating-system focus transition.
+- Old undated activity cannot be assigned to a calendar date. Date totals use recorded dated activity; lifetime totals can include saved resource totals.
+- Native image sharing depends on browser/device support; PNG download remains available.
+- The app blocks MFK and unknown/unverifiable video status. It does not determine the API Client's child-directed classification under applicable law; that remains an owner review.
 
-The main implementation boundaries are:
+## Build With AI: Basics
 
-- [src/domain/](src/domain) validates YouTube links, focus goals, library items, and progress calculations.
-- [src/services/youtube/playerAdapter.ts](src/services/youtube/playerAdapter.ts) and [iframeApi.ts](src/services/youtube/iframeApi.ts) load the official YouTube IFrame API and adapt player events, playlist IDs, playback state, and position checkpoints.
-- [src/services/focus/focusController.ts](src/services/focus/focusController.ts) and [focusSignals.ts](src/services/focus/focusSignals.ts) combine player state with browser visibility and focus signals. The controller counts only bounded intervals observed while all eligibility conditions hold.
-- [src/services/persistence/libraryRepository.ts](src/services/persistence/libraryRepository.ts) and [libraryCodec.ts](src/services/persistence/libraryCodec.ts) validate and save the library in browser local storage, detect stale cross-tab writes, and can migrate a legacy single-commitment record.
-- [src/ui/FocusCup.tsx](src/ui/FocusCup.tsx) renders the activity visualization; [src/ui/LearningDashboard.tsx](src/ui/LearningDashboard.tsx) renders the saved library and local activity summaries.
-- [tests/unit/](tests/unit) contains Vitest tests for domain rules, focus accounting, persistence, the player adapter, and presentation preferences. [tests/e2e/](tests/e2e) contains Playwright user-flow tests, including a real YouTube embed smoke test and browser tests that use controlled player fixtures.
-
-## Privacy and data handling
-
-The library is stored in `localStorage` under `k12learn2gether.library.v1`. It may contain resource names and subjects, YouTube video and playlist IDs, playlist order and current item when available, learning objectives, focus goals, playback position, session and learner-reported completion state, recorded focused activity, and a bounded daily activity history. A separate local preference stores the selected light or dark theme. When a library is not present, an older single-commitment record may be copied into the library; the legacy record is retained by the current migration.
-
-Browser storage belongs to the current browser profile and exact site origin. A different browser, profile, device, hostname, or port has a separate library. Reloading at the same origin can restore saved data. There is no in-app delete control; use the browser's site-data settings for that exact address to clear it. Clearing site data removes local progress.
-
-There is no application backend, account system, analytics integration, or separate search service in the current code. Starting a lesson loads YouTube's IFrame API and embedded player. YouTube/Google may receive requests and process data under their own services and policies; the app does not control the embedded player's network behavior. No YouTube Data API key is used.
-
-## Limitations and current boundaries
-
-- Browser focus and player state cannot establish human attention or understanding. Ambiguous focus reports stop activity recording, and in some cases the embedded player may continue until a conclusive browser signal arrives.
-- Local progress does not sync across devices or browser profiles. YouTube availability, embedding permissions, playback, and network requests depend on YouTube and an internet connection.
-- Accounts, cloud sync, shared study rooms, AI tutoring, resource discovery, and curriculum pathways are outside this proof of concept.
-- The current code has evolved beyond the approved [scope](devpost/scope.md) and [PRD](devpost/prd.md): it stores multiple resources and includes date-based activity summaries and a current-streak display, while those planning documents describe a single active commitment and cut streaks. The [technical spec](devpost/spec.md) is marked draft. This README describes the code as implemented; the planning documents still need owner review for alignment.
-- The [build checklist](devpost/checklist.md) leaves final learner exploration, final review, and the code tour/app map pending. The manual browser record also lists native focus transitions, live playlist data, and real autoplay-blocked behavior as unverified. Automated test results do not resolve those open checks, so this README does not claim the project is fully submission-ready.
-
-## Project notes and acknowledgements
-
-Project records:
-
-- [Approved scope](devpost/scope.md)
-- [Approved PRD](devpost/prd.md)
-- [Technical spec](devpost/spec.md)
-- [Build checklist](devpost/checklist.md)
-- [Manual browser checks](devpost/manual-browser-checks.md)
-
-No current application screenshots or app map are included in the repository, so this README does not present mockups or generated test captures as product screenshots.
-
-Development used the Devpost Learn Skill Pack, tracked in [skills-lock.json](skills-lock.json), along with AI-assisted coding and review. The application itself does not provide AI tutoring or call an AI service. The project uses React, TypeScript, Vite, Vitest, Playwright, and YouTube's IFrame API. Their own licenses and service terms remain applicable; this project's MIT license does not replace them.
+K12Learn2Gether was developed for Devpost's Build With AI: Basics hackathon using the Devpost Learn Skill Pack. Skill usage is recorded in [`skills-lock.json`](skills-lock.json). AI-assisted coding and review were part of development; this repository does not claim the planning work was unaided. Learner-profile information is intentionally not linked from this public project README.
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE).
+MIT — see [LICENSE](LICENSE).

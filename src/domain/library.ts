@@ -38,13 +38,13 @@ export function emptyLibrary(): LibraryStateV1 {
 }
 
 export function libraryItemId(lesson: CommitmentRecordV1["lesson"]): string {
-  return lesson.playlistId ? `playlist:${lesson.playlistId}` : `video:${lesson.videoId}`;
+  return lesson.playlistId ? `playlist:${lesson.playlistId}` : `video:${lesson.videoId ?? ""}`;
 }
 
 export function legacyLibraryItem(record: CommitmentRecordV1): LibraryItem {
   return {
     id: libraryItemId(record.lesson),
-    title: record.lesson.title?.trim() || record.objective,
+    title: record.objective,
     subject: "Uncategorized",
     sourceType: record.lesson.playlistId ? "playlist" : "video",
     commitment: record,
