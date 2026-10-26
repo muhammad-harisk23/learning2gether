@@ -24,7 +24,7 @@ async function installDataApiMock(page: Page): Promise<void> {
         headers: { "Access-Control-Allow-Origin": "*" },
         body: JSON.stringify({
           items: (url.searchParams.get("id") ?? "").split(",").filter(Boolean)
-            .map((id) => ({ id, status: { madeForKids: false } })),
+            .map((id) => ({ id, status: { embeddable: true, madeForKids: false } })),
         }),
       });
       return;
