@@ -124,3 +124,121 @@ test("a valid legacy commitment migrates once and keeps the original record", as
   await page.reload();
   expect(await page.evaluate((key) => JSON.parse(localStorage.getItem(key)!).items.length, libraryKey)).toBe(1);
 });
+
+test("dashboard and workspace share truthful progress cards and preserve vessel choices", async ({ page }, testInfo) => {
+  await installPlayer(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.addInitScript(() => {
+    (window as any).__sharedFile = null;
+    Object.defineProperty(navigator, "canShare", { configurable: true, value: ({ files }: { files?: File[] }) => !!files?.length && files[0].type === "image/png" });
+    Object.defineProperty(navigator, "share", { configurable: true, value: async ({ files }: { files?: File[] }) => {
+      const file = files?.[0];
+      (window as any).__sharedFile = file ? { name: file.name, type: file.type, size: file.size } : null;
+    } });
+  });
+  await page.addInitScript((key) => {
+    const today = new Date();
+    const localDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+    localStorage.setItem(key, JSON.stringify({
+      schemaVersion: 1,
+      revision: 1,
+      selectedItemId: "video:dQw4w9WgXcQ",
+      items: [{
+        id: "video:dQw4w9WgXcQ",
+        title: "Electricity basics",
+        subject: "Physics",
+        sourceType: "video",
+        lastStudiedAt: "2026-10-26T12:00:00.000Z",
+        commitment: {
+          schemaVersion: 1,
+          revision: 7,
+          lesson: { videoId: "dQw4w9WgXcQ", canonicalUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", title: "Electricity basics" },
+          objective: "Understand current and voltage",
+          goalMinutes: 10,
+          vesselStyle: "mug",
+          lastConfirmedPositionMs: 72_000,
+          cumulativeRecordedFocusedMs: 15 * 60_000,
+          lessonStatus: "unfinished",
+          sessionStatus: "finished",
+          createdAt: "2026-10-26T11:00:00.000Z",
+          updatedAt: "2026-10-26T12:00:00.000Z",
+        },
+      }],
+      activity: [{ localDate, eligibleMs: 6 * 60_000 }],
+    }));
+  }, libraryKey);
+  await page.goto("/");
+  await page.getByRole("link", { name: "My Learning" }).click();
+
+  await expect(page.locator(".streak-card")).toHaveAttribute("data-qualified", "false");
+  await expect(page.locator(".streak-today")).toContainText("6 min / 10 min");
+  await expect(page.locator(".streak-progress")).toHaveAttribute("max", "600000");
+  await expect(page.locator(".continue-card")).toContainText("Physics");
+  await expect(page.locator(".continue-card")).toContainText("Focus goal progress · 100%");
+  await expect(page.locator(".continue-card")).toContainText("Saved position · 1:12");
+  await expect(page.locator(".continue-card .focus-cup")).toBeVisible();
+  await expect(page.locator(".continue-card .focus-cup")).toHaveClass(/caption-visible/);
+  await expect(page.locator(".library-card")).toBeVisible();
+  await expect(page.getByText(/revision\s+\d+/i)).toHaveCount(0);
+  await page.screenshot({ path: testInfo.outputPath("my-learning-desktop.png"), animations: "disabled" });
+  await page.setViewportSize({ width: 1024, height: 768 });
+  await page.screenshot({ path: testInfo.outputPath("my-learning-tablet.png"), animations: "disabled" });
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  await page.screenshot({ path: testInfo.outputPath("my-learning-mobile.png"), animations: "disabled" });
+  await page.setViewportSize({ width: 1440, height: 900 });
+
+  await page.getByRole("button", { name: /Share progress/ }).click();
+  const dialog = page.getByRole("dialog", { name: "Share your progress" });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("group", { name: "Share card type" }).getByRole("button", { name: "Daily focus" }).click();
+  await expect(dialog.getByRole("group", { name: "Share card type" }).getByRole("button", { name: "Daily focus" })).toHaveAttribute("aria-pressed", "true");
+  await expect(dialog.locator(".share-preview img")).toHaveAttribute("alt", /6 min recorded/);
+  await expect(dialog.getByRole("button", { name: "Share image" })).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath("share-daily-desktop.png"), animations: "disabled" });
+  await dialog.getByRole("button", { name: "Learning recap" }).click();
+  await expect(dialog.locator(".share-preview img")).toHaveAttribute("alt", /Learning recap/);
+  await dialog.getByLabel("Include subject and resource title").check();
+  await page.setViewportSize({ width: 1024, height: 768 });
+  await page.screenshot({ path: testInfo.outputPath("share-recap-tablet.png"), animations: "disabled" });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(dialog.getByRole("button", { name: "Download PNG" })).toBeInViewport();
+  await expect(dialog.getByRole("button", { name: "Share image" })).toBeInViewport();
+  await page.screenshot({ path: testInfo.outputPath("share-recap-mobile.png"), animations: "disabled" });
+  const downloadPromise = page.waitForEvent("download");
+  await dialog.getByRole("button", { name: "Download PNG" }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe("k12learn2gether-focus-progress.png");
+  await dialog.getByRole("button", { name: "Share image" }).click();
+  await expect.poll(() => page.evaluate(() => (window as any).__sharedFile?.type)).toBe("image/png");
+  expect(await page.evaluate(() => (window as any).__sharedFile?.size)).toBeGreaterThan(1000);
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.getByRole("button", { name: /Continue Learning/ }).click();
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  await expect(page.locator(".save-state")).toHaveText("Saved locally");
+  await expect(page.locator(".save-state")).not.toContainText(/revision/i);
+  await page.locator(".study-nav").getByRole("button", { name: /Back to Home/ }).click();
+  await page.getByRole("link", { name: "My Learning" }).click();
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  await page.getByRole("button", { name: /Share progress/ }).click();
+  const goalDialog = page.getByRole("dialog", { name: "Share your progress" });
+  await expect(goalDialog.getByRole("button", { name: "Goal reached" })).toHaveAttribute("aria-pressed", "true");
+  await expect(goalDialog.locator(".share-preview img")).toHaveAttribute("alt", /Focus goal reached. 15 minutes focused/);
+  await expect(goalDialog.locator(".share-preview img")).toHaveAttribute("src", /data:image\/svg\+xml/);
+  await page.screenshot({ path: testInfo.outputPath("share-goal-reached.png"), animations: "disabled" });
+  await page.keyboard.press("Escape");
+  await page.evaluate(() => {
+    Object.defineProperty(navigator, "canShare", { configurable: true, value: undefined });
+    Object.defineProperty(navigator, "share", { configurable: true, value: undefined });
+  });
+  await page.getByRole("link", { name: "Home", exact: true }).click();
+  await page.getByRole("link", { name: "My Learning" }).click();
+  await page.getByRole("button", { name: /Share progress/ }).click();
+  const fallbackDialog = page.getByRole("dialog", { name: "Share your progress" });
+  await expect(fallbackDialog.getByRole("button", { name: "Share image" })).toHaveCount(0);
+  await expect(fallbackDialog.getByText(/Download the PNG, then share it/)).toBeVisible();
+  await expect(fallbackDialog.getByRole("button", { name: "Download PNG" })).toBeVisible();
+});

@@ -121,6 +121,8 @@ test("bounded focus timer starts from PLAYING, pauses on hidden tab, and does no
   await expect.poll(async () => (await timer.innerText()).trim()).not.toBe("0:00");
   await expect.poll(async () => (await readActiveCommitment(page)).sessionStatus).toBe("active");
   await expect.poll(async () => (await readActiveCommitment(page)).cumulativeRecordedFocusedMs).toBeGreaterThan(0);
+  await expect.poll(async () => Number(await page.locator(".focus-cup").getAttribute("data-recorded-ms"))).toBeGreaterThan(0);
+  await expect(page.locator(".focus-cup")).toContainText("Recording focus");
   await expect.poll(async () => Number(await page.locator(".cup-liquid").getAttribute("height"))).toBeGreaterThan(0);
   const beforeHidden = await timer.innerText();
   const playCallsBefore = await page.evaluate(() => (window as any).__playCalls);
@@ -129,6 +131,7 @@ test("bounded focus timer starts from PLAYING, pauses on hidden tab, and does no
     document.dispatchEvent(new Event("visibilitychange"));
   });
   await expect.poll(() => page.evaluate(() => (window as any).__pauseCalls)).toBeGreaterThan(0);
+  await expect(page.locator(".focus-cup")).toContainText("Paused");
   const pausedValue = await timer.innerText();
   await page.waitForTimeout(1800);
   await expect(timer).toHaveText(pausedValue);
@@ -279,6 +282,7 @@ test("desktop workspace fits the viewport and keeps essential controls visible a
     await page.goto("/");
     await page.evaluate(() => localStorage.clear());
     await beginStudy(page, `https://www.youtube.com/playlist?list=${playlistId}`);
+    await expect(page.locator(".focus-cup")).toHaveClass(/caption-visible/);
     await expect(page.locator(".study-heading")).toHaveCount(0);
     await expect(page.locator(".session-actions")).not.toHaveAttribute("open", "");
     await page.locator(".session-actions summary").focus();
@@ -382,12 +386,14 @@ test("Focus Cup vessel selection persists without changing commitment progress",
 test("Focus Cup goal changes do not create a completion event and reduced motion removes overflow motion", async ({ page }) => {
   await installFakeYouTube(page);
   await page.setViewportSize({ width: 1440, height: 900 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
   await beginStudy(page, `https://www.youtube.com/watch?v=${firstVideo}`);
   await page.getByLabel("Change goal").fill("5");
   await page.getByRole("button", { name: "Save goal" }).click();
   await expect(page.locator(".focus-cup")).toHaveAttribute("data-celebrating", "false");
   await expect(page.locator(".cup-illustration")).toHaveAttribute("aria-label", /5 min/);
-  await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect(page.locator(".focus-cup")).toHaveClass(/fill-visible/);
+  await expect(page.locator(".focus-cup")).toHaveClass(/caption-visible/);
   await expect(page.locator(".cup-overflow")).toHaveCSS("display", "none");
   await expect(page.locator(".cup-liquid")).toHaveCSS("transition-duration", "0s");
 });

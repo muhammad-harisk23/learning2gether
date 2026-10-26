@@ -1,11 +1,11 @@
 import type { CommitmentRecordV1 } from "./commitment";
-import { goalProgress } from "./focusGoal";
+import { goalPercent } from "./focusGoal";
 
 export const LIBRARY_SCHEMA_VERSION = 1 as const;
 export const MAX_LIBRARY_ITEMS = 200;
 export const MAX_ACTIVITY_DAYS = 400;
-/** A local calendar date qualifies as a study day after 60 seconds of persisted eligible focus. */
-export const STREAK_QUALIFYING_MS = 60_000;
+/** A local calendar date qualifies after ten minutes of persisted eligible focus. */
+export const STREAK_QUALIFYING_MS = 10 * 60_000;
 
 export interface LibraryItem {
   id: string;
@@ -52,7 +52,7 @@ export function legacyLibraryItem(record: CommitmentRecordV1): LibraryItem {
 }
 
 export function itemProgress(item: LibraryItem): number {
-  return Math.floor(goalProgress(item.commitment.cumulativeRecordedFocusedMs, item.commitment.goalMinutes).fill * 100);
+  return goalPercent(item.commitment.cumulativeRecordedFocusedMs, item.commitment.goalMinutes);
 }
 
 export function itemStatus(item: LibraryItem): "not-started" | "in-progress" | "completed" {

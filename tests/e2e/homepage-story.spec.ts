@@ -4,8 +4,8 @@ test("homepage explains the real problem and the illustrative journey", async ({
   await page.goto("/");
 
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("You found a good lesson. Then the distractions started.");
-  await expect(page.locator(".hero-emphasis")).toHaveText("Stop searching. Start finishing.");
-  await expect(page.locator(".hero-lede")).toHaveText("Save the lessons and playlists you trust in one personal library. Come back to exactly where you stopped, stay focused, and turn the resources you already chose into real progress.");
+  await expect(page.locator(".hero-emphasis")).toHaveText("Stop searching. Keep going.");
+  await expect(page.locator(".hero-lede")).toHaveText("Save the lessons and playlists you trust in one personal library. Come back to your saved position and see eligible recorded focus time toward the goal you chose.");
   await expect(page.getByText("ILLUSTRATIVE SCENARIO · NO LIVE SEARCH OR ACTIVITY")).toBeVisible();
   await expect(page.locator(".journey-search .search-field")).toContainText("Current Electricity");
   await expect(page.locator(".journey-choices")).toContainText("Best physics teacher");

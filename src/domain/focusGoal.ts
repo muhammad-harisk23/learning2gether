@@ -23,3 +23,8 @@ export function goalProgress(recordedMs: number, goalMinutes: number) {
     remainingMs: Math.max(goalMs - recordedMs, 0),
   };
 }
+
+/** Whole-number display percentage derived from the same capped goal ratio used by the vessel. */
+export function goalPercent(recordedMs: number, goalMinutes: number): number {
+  return Math.floor(goalProgress(recordedMs, goalMinutes).fill * 100);
+}

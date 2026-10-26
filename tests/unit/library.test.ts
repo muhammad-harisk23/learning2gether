@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { newCommitment } from "../../src/domain/commitment";
-import { currentStudyStreak, itemProgress, itemStatus, libraryItemId, periodActivityMs, type LibraryItem } from "../../src/domain/library";
+import { currentStudyStreak, itemProgress, itemStatus, libraryItemId, periodActivityMs, STREAK_QUALIFYING_MS, type LibraryItem } from "../../src/domain/library";
 import { COMMITMENT_KEY } from "../../src/services/persistence/commitmentRepository";
 import { LIBRARY_KEY, LibraryRepository } from "../../src/services/persistence/libraryRepository";
 import { parseStoredLibrary } from "../../src/services/persistence/libraryCodec";
@@ -90,23 +90,25 @@ describe("personal learning library", () => {
     const entry = item("dQw4w9WgXcQ");
     expect(itemProgress(entry)).toBe(0);
     expect(itemStatus(entry)).toBe("not-started");
-    expect(currentStudyStreak([{ localDate: "2026-03-02", eligibleMs: 59_999 }], new Date(2026, 2, 2, 12))).toBe(0);
+    expect(STREAK_QUALIFYING_MS).toBe(600_000);
+    expect(currentStudyStreak([{ localDate: "2026-03-02", eligibleMs: 599_999 }], new Date(2026, 2, 2, 12))).toBe(0);
+    expect(currentStudyStreak([{ localDate: "2026-03-02", eligibleMs: 600_000 }], new Date(2026, 2, 2, 12))).toBe(1);
     const activity = [
-      { localDate: "2026-02-26", eligibleMs: 60_000 },
-      { localDate: "2026-02-27", eligibleMs: 59_999 },
-      { localDate: "2026-02-28", eligibleMs: 60_000 },
-      { localDate: "2026-03-01", eligibleMs: 65_000 },
+      { localDate: "2026-02-26", eligibleMs: 600_000 },
+      { localDate: "2026-02-27", eligibleMs: 599_999 },
+      { localDate: "2026-02-28", eligibleMs: 600_000 },
+      { localDate: "2026-03-01", eligibleMs: 650_000 },
     ];
     expect(currentStudyStreak(activity, new Date(2026, 2, 1, 12))).toBe(2);
     expect(currentStudyStreak(activity, new Date(2026, 2, 2, 12))).toBe(2);
-    expect(periodActivityMs(activity, "week", new Date(2026, 2, 1, 12))).toBe(244_999);
-    expect(periodActivityMs(activity, "month", new Date(2026, 2, 1, 12))).toBe(65_000);
+    expect(periodActivityMs(activity, "week", new Date(2026, 2, 1, 12))).toBe(2_449_999);
+    expect(periodActivityMs(activity, "month", new Date(2026, 2, 1, 12))).toBe(650_000);
     const yearBoundary = [
-      { localDate: "2025-12-31", eligibleMs: 60_000 },
-      { localDate: "2026-01-01", eligibleMs: 60_000 },
+      { localDate: "2025-12-31", eligibleMs: 600_000 },
+      { localDate: "2026-01-01", eligibleMs: 600_000 },
     ];
     expect(currentStudyStreak(yearBoundary, new Date(2026, 0, 1, 12))).toBe(2);
-    expect(periodActivityMs(yearBoundary, "year", new Date(2026, 0, 1, 12))).toBe(60_000);
+    expect(periodActivityMs(yearBoundary, "year", new Date(2026, 0, 1, 12))).toBe(600_000);
     expect(parseStoredLibrary(JSON.stringify({ ...JSON.parse("{}"), schemaVersion: 1 })).status).toBe("corrupt");
   });
 });
