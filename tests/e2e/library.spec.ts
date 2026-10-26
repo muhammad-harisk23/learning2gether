@@ -133,7 +133,9 @@ test("dashboard and workspace share truthful progress cards and preserve vessel 
     Object.defineProperty(navigator, "canShare", { configurable: true, value: ({ files }: { files?: File[] }) => !!files?.length && files[0].type === "image/png" });
     Object.defineProperty(navigator, "share", { configurable: true, value: async ({ files }: { files?: File[] }) => {
       const file = files?.[0];
-      (window as any).__sharedFile = file ? { name: file.name, type: file.type, size: file.size } : null;
+      const bitmap = file ? await createImageBitmap(file) : null;
+      (window as any).__sharedFile = file ? { name: file.name, type: file.type, size: file.size, width: bitmap?.width, height: bitmap?.height } : null;
+      bitmap?.close();
     } });
   });
   await page.addInitScript((key) => {
@@ -175,7 +177,7 @@ test("dashboard and workspace share truthful progress cards and preserve vessel 
   await expect(page.locator(".streak-progress")).toHaveAttribute("max", "600000");
   await expect(page.locator(".continue-card")).toContainText("Physics");
   await expect(page.locator(".continue-card")).toContainText("Focus goal progress · 100%");
-  await expect(page.locator(".continue-card")).toContainText("Saved position · 1:12");
+  await expect(page.locator(".continue-card")).toContainText("Continue from 1:12");
   await expect(page.locator(".continue-card .focus-cup")).toBeVisible();
   await expect(page.locator(".continue-card .focus-cup")).toHaveClass(/caption-visible/);
   await expect(page.locator(".library-card")).toBeVisible();
@@ -191,6 +193,15 @@ test("dashboard and workspace share truthful progress cards and preserve vessel 
   await page.getByRole("button", { name: /Share progress/ }).click();
   const dialog = page.getByRole("dialog", { name: "Share your progress" });
   await expect(dialog).toBeVisible();
+  const preview = dialog.locator(".share-preview img");
+  const previewSource = await preview.getAttribute("src");
+  expect(decodeURIComponent(previewSource!.split(",")[1])).toContain("@keyframes share-fill");
+  expect(decodeURIComponent(previewSource!.split(",")[1])).toContain("@media(prefers-reduced-motion:reduce)");
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await expect.poll(() => preview.evaluate((image) => getComputedStyle(image).animationName)).toBe("share-preview-enter");
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect.poll(() => preview.evaluate((image) => getComputedStyle(image).animationName)).toBe("none");
+  await page.emulateMedia({ reducedMotion: "no-preference" });
   await dialog.getByRole("group", { name: "Share card type" }).getByRole("button", { name: "Daily focus" }).click();
   await expect(dialog.getByRole("group", { name: "Share card type" }).getByRole("button", { name: "Daily focus" })).toHaveAttribute("aria-pressed", "true");
   await expect(dialog.locator(".share-preview img")).toHaveAttribute("alt", /6 min recorded/);
@@ -212,6 +223,8 @@ test("dashboard and workspace share truthful progress cards and preserve vessel 
   await dialog.getByRole("button", { name: "Share image" }).click();
   await expect.poll(() => page.evaluate(() => (window as any).__sharedFile?.type)).toBe("image/png");
   expect(await page.evaluate(() => (window as any).__sharedFile?.size)).toBeGreaterThan(1000);
+  await expect.poll(() => page.evaluate(() => (window as any).__sharedFile?.width)).toBe(1080);
+  await expect.poll(() => page.evaluate(() => (window as any).__sharedFile?.height)).toBe(1350);
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
 

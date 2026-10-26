@@ -20,11 +20,16 @@ test("homepage explains the real problem and the illustrative journey", async ({
   for (const tool of ["YouTube", "Playlists", "Generic timers", "Blockers", "Separate notes and trackers"]) {
     await expect(page.locator(".tool-gaps")).toContainText(tool);
   }
-  await expect(page.locator("#how-it-works .workflow-list")).toContainText("eligibility rules");
-  await expect(page.locator("#how-it-works .workflow-list")).toContainText("Focus Cup");
+  await expect(page.locator("#how-it-works h2")).toHaveText("Bring what you already trust. Then stop searching.");
+  await expect(page.locator("#how-it-works .workflow-intro")).toHaveText("Build your learning library from the lessons and playlists you already chose. Come back to them without searching again.");
+  await expect(page.locator("#how-it-works .feature-grid")).toContainText("Save what you already trust.");
+  await expect(page.locator("#how-it-works .feature-grid")).toContainText("Stay with the lesson.");
+  await expect(page.locator("#how-it-works .feature-grid")).toContainText("Pick up exactly where you stopped.");
+  await expect(page.locator("#how-it-works .feature-grid")).toContainText("Make your effort visible.");
 });
 
 test("primary navigation reaches Home sections, My Learning, and Privacy & Data", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/");
 
   const navigation = page.getByRole("navigation", { name: "Primary navigation" });
@@ -35,6 +40,20 @@ test("primary navigation reaches Home sections, My Learning, and Privacy & Data"
   await navigation.getByRole("link", { name: "How it works" }).click();
   await expect(page).toHaveURL(/#how-it-works$/);
   await expect(page.locator("#how-it-works")).toBeInViewport();
+  const steps = page.locator("#how-it-works .feature-grid article");
+  await expect(steps).toHaveCount(4);
+  await page.evaluate(() => {
+    document.documentElement.style.scrollBehavior = "auto";
+    const top = document.querySelector("#how-it-works")!.getBoundingClientRect().top + window.scrollY;
+    window.scrollTo({ top, behavior: "instant" });
+  });
+  const howItWorksLayout = await page.evaluate(() => {
+    const section = document.querySelector("#how-it-works")!.getBoundingClientRect();
+    const cards = [...document.querySelectorAll("#how-it-works .feature-grid article")].map((element) => element.getBoundingClientRect());
+    return { sectionHeight: section.height, cards: cards.map(({ top, bottom, left, right }) => ({ top, bottom, left, right })) };
+  });
+  expect(howItWorksLayout.sectionHeight).toBeLessThanOrEqual(900);
+  expect(howItWorksLayout.cards.every((box) => box.top >= 0 && box.bottom <= 900 && box.left >= 0 && box.right <= 1440), JSON.stringify(howItWorksLayout)).toBe(true);
 
   await page.getByRole("link", { name: "My Learning" }).click();
   await expect(page.getByRole("heading", { name: "My Learning." })).toBeVisible();

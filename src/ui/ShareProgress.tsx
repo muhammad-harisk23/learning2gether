@@ -78,7 +78,8 @@ export const ShareProgress = memo(function ShareProgress({
   }, [isOpen]);
 
   const svg = useMemo(() => data ? buildShareCardSvg(data, variant, includeResource) : "", [data, variant, includeResource]);
-  const previewSrc = useMemo(() => svg ? `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}` : "", [svg]);
+  const previewSvg = useMemo(() => data ? buildShareCardSvg(data, variant, includeResource, true) : "", [data, variant, includeResource]);
+  const previewSrc = useMemo(() => previewSvg ? `data:image/svg+xml;charset=utf-8,${encodeURIComponent(previewSvg)}` : "", [previewSvg]);
 
   function openShare(): void {
     const next = selectShareProgress(library, resourceId, new Date());
@@ -140,7 +141,7 @@ export const ShareProgress = memo(function ShareProgress({
           <div className="share-variants" role="group" aria-label="Share card type">
             {(["daily", "recap", ...(data.goalReached ? ["goal"] : [])] as ShareCardVariant[]).map((option) => <button key={option} type="button" aria-pressed={variant === option} onClick={() => { setVariant(option); setStatus(""); }}>{CARD_LABELS[option]}</button>)}
           </div>
-          <div className="share-preview"><img src={previewSrc} alt={shareCardAlt(data, variant)} /></div>
+          <div className="share-preview"><img key={`${variant}-${includeResource}`} src={previewSrc} alt={shareCardAlt(data, variant)} /></div>
           <p className="share-date-note">Date totals come from eligible activity recorded in this browser. Older focus totals may have no dates.</p>
           {data.resourceTitle && <label className="share-resource-toggle"><input type="checkbox" checked={includeResource} onChange={(event) => setIncludeResource(event.target.checked)} /> Include subject and resource title</label>}
         </div>
